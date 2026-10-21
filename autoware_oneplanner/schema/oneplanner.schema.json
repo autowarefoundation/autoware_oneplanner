@@ -43,6 +43,12 @@
           "default": 1.0,
           "exclusiveMinimum": 0
         },
+        "acceleration_max_wait_ms": {
+          "type": "number",
+          "description": "How long a pass waits for the acceleration at the planning stamp before it takes the latest earlier sample; 0 never waits.",
+          "default": 50.0,
+          "minimum": 0
+        },
         "debug": {
           "type": "object",
           "properties": {
@@ -352,6 +358,7 @@
         "trt_workspace_mib",
         "shift_x",
         "input_timeout_seconds",
+        "acceleration_max_wait_ms",
         "debug",
         "localization_reset",
         "bev_feature",

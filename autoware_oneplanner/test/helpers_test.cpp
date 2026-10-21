@@ -293,6 +293,23 @@ TEST(TimestampedBuffer, InterpolatesRetainsAndResets)
   EXPECT_EQ(buffer.bracket(0)->first, 0u);
 }
 
+// A stream delivered in stamp order has everything up to a target once a sample at or after it is
+// in: what the node waits for before it reads the acceleration at the planning stamp.
+TEST(TimestampedBuffer, CoversATargetOnceASampleAtOrAfterItArrived)
+{
+  TimestampedBuffer<double> buffer;
+  EXPECT_FALSE(buffer.covers(0));
+  buffer.insert(980000000LL, 1.0, 300000000LL);
+  EXPECT_FALSE(buffer.covers(1000000000LL));  // the sample at the target is still in flight
+  EXPECT_EQ(*buffer.at_or_before(1000000000LL, 200000000LL), 1.0);
+  buffer.insert(1000000000LL, 2.0, 300000000LL);
+  EXPECT_TRUE(buffer.covers(1000000000LL));
+  EXPECT_EQ(*buffer.at_or_before(1000000000LL, 200000000LL), 2.0);
+  EXPECT_TRUE(buffer.covers(990000000LL));
+  buffer.insert(0, 0.0, 300000000LL);  // time going backwards resets
+  EXPECT_FALSE(buffer.covers(1000000000LL));
+}
+
 // Irregular 50 Hz odometry with missing samples still yields a 31-pose 0.1 s grid anchored at
 // a LiDAR stamp off the odometry grid.
 TEST(TimestampedBuffer, SupportsATenHertzGridFromIrregularOdometry)

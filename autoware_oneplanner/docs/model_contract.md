@@ -31,7 +31,10 @@ and refuses a package that states another (`input_convention`). `oneplanner_v1` 
   speed, and the steering tire angle as the vehicle reports it. No low-speed zeroing, no clamp.
   The twist is the latest odometry sample at or before the planning time, not an interpolation;
   where that twist is exactly zero (an EKF stop filter), the latest velocity report at or before
-  it stands in.
+  it stands in. The acceleration is the latest sample at or before the planning time too, and
+  localization stamps it like the odometry but publishes it just after: a pass waits for the
+  sample at its planning time for up to `acceleration_max_wait_ms` (then takes the latest
+  earlier one), so what the model is fed does not depend on which message arrived first.
 - **Map** converted as described in [Vector-map tensors](#vector-map-tensors): drivable lanes
   only, centerlines from the bounds, crosswalks as polygons, linearly resampled line strings,
   slot order by whole millimetres then map id.
