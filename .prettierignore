@@ -1,0 +1,5 @@
+# Taken from https://github.com/autowarefoundation/sync-file-templates
+
+*.param.yaml
+*.rviz
+.cspell.json

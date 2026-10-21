@@ -1,0 +1,379 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Parameters for autoware_oneplanner",
+  "type": "object",
+  "definitions": {
+    "oneplanner": {
+      "type": "object",
+      "properties": {
+        "model_path": {
+          "type": "string",
+          "description": "Path to the planner ONNX file. Its TensorRT engine is built and cached beside it as <stem>.engine."
+        },
+        "plugins_path": {
+          "type": "string",
+          "description": "TensorRT plugin library the planner graph needs; empty for none.",
+          "default": ""
+        },
+        "build_only": {
+          "type": "boolean",
+          "description": "Exit after the TensorRT engines are built.",
+          "default": false
+        },
+        "precision": {
+          "type": "string",
+          "description": "TensorRT builder precision of the planner. With a graph that carries float16 tensors of its own, fp16 makes the builder obey the graph's per-layer types.",
+          "default": "fp32",
+          "enum": ["fp32", "fp16"]
+        },
+        "trt_workspace_mib": {
+          "type": "integer",
+          "description": "TensorRT builder workspace in MiB, shared by both engines: an upper bound on the builder's scratch memory, not an allocation.",
+          "default": 4096,
+          "minimum": 1
+        },
+        "shift_x": {
+          "type": "boolean",
+          "description": "Use the vehicle centre instead of base_link as the model's reference point, as autoware_diffusion_planner's option of the same name.",
+          "default": false
+        },
+        "input_timeout_seconds": {
+          "type": "number",
+          "description": "How long the pacing sensor may stay silent before inference_status reports the wait.",
+          "default": 1.0,
+          "exclusiveMinimum": 0
+        },
+        "debug": {
+          "type": "object",
+          "properties": {
+            "dump_dir": {
+              "type": "string",
+              "description": "Debug only: directory to write the host-side input and output tensors of the first dump_max_frames inferences to, as raw float32 files plus a JSONL manifest. Empty disables it.",
+              "default": ""
+            },
+            "dump_max_frames": {
+              "type": "integer",
+              "description": "How many inferences debug.dump_dir records.",
+              "default": 300,
+              "minimum": 0
+            }
+          },
+          "required": ["dump_dir", "dump_max_frames"],
+          "additionalProperties": false
+        },
+        "localization_reset": {
+          "type": "object",
+          "properties": {
+            "translation_slack_m": {
+              "type": "number",
+              "description": "Translation slack of the localization-jump check [m].",
+              "default": 2.0,
+              "exclusiveMinimum": 0
+            },
+            "max_speed_mps": {
+              "type": "number",
+              "description": "Fastest motion the check allows between two odometry samples [m/s].",
+              "default": 60.0,
+              "exclusiveMinimum": 0
+            },
+            "yaw_slack_rad": {
+              "type": "number",
+              "description": "Yaw slack of the localization-jump check [rad].",
+              "default": 0.35,
+              "exclusiveMinimum": 0
+            },
+            "max_yaw_rate_rps": {
+              "type": "number",
+              "description": "Fastest yaw rate the check allows [rad/s].",
+              "default": 2.0,
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": ["translation_slack_m", "max_speed_mps", "yaw_slack_rad", "max_yaw_rate_rps"],
+          "additionalProperties": false
+        },
+        "bev_feature": {
+          "type": "object",
+          "properties": {
+            "interval_tolerance_seconds": {
+              "type": "number",
+              "description": "How far a cached map may lie from a history step's target time and still fill it [s].",
+              "default": 0.02,
+              "minimum": 0
+            },
+            "substitute_max_seconds": {
+              "type": "number",
+              "description": "How much older than its target a map may be to stand in for a dropped LiDAR frame [s]; 0 disables substitution.",
+              "default": 0.2,
+              "minimum": 0
+            },
+            "warmup": {
+              "type": "string",
+              "description": "Until the history is complete: wait, or duplicate the newest map into the missing steps.",
+              "default": "wait",
+              "enum": ["wait", "duplicate_current"]
+            },
+            "max_delay_ms": {
+              "type": "number",
+              "description": "Oldest point cloud the node plans on, against the node clock [ms].",
+              "default": 200.0,
+              "exclusiveMinimum": 0
+            },
+            "max_future_skew_ms": {
+              "type": "number",
+              "description": "How far in the future a point cloud stamp may lie [ms].",
+              "default": 20.0,
+              "minimum": 0
+            },
+            "extractor": {
+              "type": "object",
+              "properties": {
+                "engine_path": {
+                  "type": "string",
+                  "description": "Engine cache of the extractor; empty puts <onnx stem>.engine beside the ONNX file.",
+                  "default": ""
+                },
+                "onnx_path": {
+                  "type": "string",
+                  "description": "Path to the BEV feature extractor ONNX file."
+                },
+                "plugins_path": {
+                  "type": "string",
+                  "description": "TensorRT plugin library with the sparse-convolution operators of the extractor graph."
+                },
+                "precision": {
+                  "type": "string",
+                  "description": "TensorRT builder precision of the extractor.",
+                  "default": "fp16",
+                  "enum": ["fp32", "fp16"]
+                },
+                "cloud_capacity": {
+                  "type": "integer",
+                  "description": "Most points of one cloud the extractor reads; the rest are dropped.",
+                  "default": 2000000,
+                  "minimum": 1
+                }
+              },
+              "required": [
+                "engine_path",
+                "onnx_path",
+                "plugins_path",
+                "precision",
+                "cloud_capacity"
+              ],
+              "additionalProperties": false
+            },
+            "detection": {
+              "type": "object",
+              "properties": {
+                "circle_nms_dist_threshold": {
+                  "type": "number",
+                  "description": "Class-agnostic circle NMS distance on the box centres [m]; 0 disables it.",
+                  "default": 0.5,
+                  "minimum": 0
+                },
+                "iou_nms_search_distance_2d": {
+                  "type": "number",
+                  "description": "Search distance of the BEV-IoU NMS [m].",
+                  "default": 10.0,
+                  "minimum": 0
+                },
+                "iou_nms_threshold": {
+                  "type": "number",
+                  "description": "BEV IoU above which the lower-scored object is dropped.",
+                  "default": 0.1,
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "yaw_norm_thresholds": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "description": "Per head class, in class_names order: a proposal whose (sin, cos) norm is below its class's floor is scored zero."
+                },
+                "allow_remapping_by_area_matrix": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  },
+                  "description": "Area-based class remapping (square, row-major, indexed by ObjectClassification label): whether a label may become another. Set all three matrices to enable remapping."
+                },
+                "min_area_matrix": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "description": "Smallest BEV area of each remapping [m^2]."
+                },
+                "max_area_matrix": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "description": "Largest BEV area of each remapping [m^2]."
+                }
+              },
+              "required": [
+                "circle_nms_dist_threshold",
+                "iou_nms_search_distance_2d",
+                "iou_nms_threshold"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "interval_tolerance_seconds",
+            "substitute_max_seconds",
+            "warmup",
+            "max_delay_ms",
+            "max_future_skew_ms",
+            "extractor",
+            "detection"
+          ],
+          "additionalProperties": false
+        },
+        "context": {
+          "type": "object",
+          "properties": {
+            "turn_indicators": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "description": "Subscribe to the turn-indicator report for a model whose graph reads turn_indicators; false binds a constant and subscribes to nothing.",
+                  "default": true
+                }
+              },
+              "required": ["enabled"],
+              "additionalProperties": false
+            },
+            "line_string_max_step_m": {
+              "type": "number",
+              "description": "Largest spacing of the resampled points of a map line string [m].",
+              "default": 5.0,
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": ["turn_indicators", "line_string_max_step_m"],
+          "additionalProperties": false
+        },
+        "postprocess": {
+          "type": "object",
+          "properties": {
+            "velocity_smoothing_window": {
+              "type": "integer",
+              "description": "Trailing window of the trajectory velocity smoothing [points].",
+              "default": 8,
+              "minimum": 1
+            },
+            "stopping_threshold": {
+              "type": "number",
+              "description": "Speed below which a decelerating plan latches a stop [m/s].",
+              "default": 0.3,
+              "minimum": 0
+            },
+            "turn_indicator": {
+              "type": "object",
+              "properties": {
+                "min_probability": {
+                  "type": "number",
+                  "description": "Probability a new turn-indicator state must lead with.",
+                  "default": 0.7,
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "confirm_cycles": {
+                  "type": "integer",
+                  "description": "Consecutive cycles a new state must lead for.",
+                  "default": 1,
+                  "minimum": 1
+                },
+                "hold_s": {
+                  "type": "number",
+                  "description": "Least time between two changes of the command [s].",
+                  "default": 1.0,
+                  "minimum": 0
+                }
+              },
+              "required": ["min_probability", "confirm_cycles", "hold_s"],
+              "additionalProperties": false
+            }
+          },
+          "required": ["velocity_smoothing_window", "stopping_threshold", "turn_indicator"],
+          "additionalProperties": false
+        },
+        "planning_factor": {
+          "type": "object",
+          "properties": {
+            "enable_stop": {
+              "type": "boolean",
+              "description": "Publish the stop the trajectory plans as a planning factor.",
+              "default": false
+            },
+            "enable_slowdown": {
+              "type": "boolean",
+              "description": "Publish the slow-down the trajectory plans as a planning factor.",
+              "default": false
+            },
+            "stop_velocity_threshold": {
+              "type": "number",
+              "description": "A point at or below this speed is a stop [m/s].",
+              "default": 0.1,
+              "minimum": 0
+            },
+            "stop_keep_duration_threshold": {
+              "type": "number",
+              "description": "A stop must hold this long to be reported [s].",
+              "default": 1.0,
+              "minimum": 0
+            },
+            "slowdown_accel_threshold": {
+              "type": "number",
+              "description": "A point decelerating harder than this is part of a slow-down [m/s^2].",
+              "default": -0.3
+            }
+          },
+          "required": [
+            "enable_stop",
+            "enable_slowdown",
+            "stop_velocity_threshold",
+            "stop_keep_duration_threshold",
+            "slowdown_accel_threshold"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "model_path",
+        "plugins_path",
+        "build_only",
+        "precision",
+        "trt_workspace_mib",
+        "shift_x",
+        "input_timeout_seconds",
+        "debug",
+        "localization_reset",
+        "bev_feature",
+        "context",
+        "postprocess",
+        "planning_factor"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "properties": {
+    "/**": {
+      "type": "object",
+      "properties": {
+        "ros__parameters": {
+          "$ref": "#/definitions/oneplanner"
+        }
+      },
+      "required": ["ros__parameters"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["/**"],
+  "additionalProperties": false
+}

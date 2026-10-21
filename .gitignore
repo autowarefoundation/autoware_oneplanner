@@ -1,0 +1,15 @@
+# colcon
+build/
+install/
+log/
+
+# TensorRT engines and their identity files, built next to the model files at run time
+*.engine
+*.engine.identity
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+node_modules/
