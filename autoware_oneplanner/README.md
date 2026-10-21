@@ -90,6 +90,7 @@ The main deployment parameters (all of them, with defaults and ranges, are in
 | `bev_feature.substitute_max_seconds` | 0.2     | How much older a map may stand in for a dropped LiDAR frame          |
 | `bev_feature.warmup`                 | `wait`  | Until the history is complete: `wait`, or `duplicate_current`        |
 | `input_timeout_seconds`              | 1.0     | Silence of the LiDAR after which `inference_status` reports the wait |
+| `acceleration_max_wait_ms`           | 50      | Wait for the acceleration at the planning stamp; 0 never waits [ms]  |
 | `postprocess.stopping_threshold`     | 0.3     | Speed below which a decelerating plan latches a stop [m/s]           |
 | `planning_factor.enable_stop`        | false   | Publish the planned stop as a planning factor                        |
 | `debug.dump_dir`                     | `""`    | Write the first passes' input and output tensors here (debug only)   |
