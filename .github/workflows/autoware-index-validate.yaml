@@ -1,0 +1,28 @@
+name: autoware-index-validate
+
+# Build and test the package against the latest Autoware Core release for each ROS distro it
+# is registered for in autowarefoundation/autoware-index, with the reusable workflow of
+# autoware-index-github-actions. The container image of that workflow has Autoware Core but no
+# CUDA, TensorRT or spconv, so it builds and tests the host library (autoware_oneplanner_core)
+# and the launch file checks; the GPU part is built where those are installed.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ros_distro: jazzy
+    uses: autowarefoundation/autoware-index-github-actions/.github/workflows/validate-package.yaml@main
+    with:
+      ros_distro: ${{ matrix.ros_distro }}
+      package_name: autoware_oneplanner
+      pull-ccache: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' }}
+      push-ccache: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      cache-key-element: build
+      concurrency-group: autoware-index-validate-${{ matrix.ros_distro }}-${{ github.event_name == 'push' && 'main' || github.ref }}

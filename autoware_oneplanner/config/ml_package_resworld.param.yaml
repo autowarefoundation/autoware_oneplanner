@@ -1,0 +1,90 @@
+# EXAMPLE of an ml_package file for a ResWorld model, for reference only: the node reads the
+# file that ships next to the model files (`ml_package_<model_name>.param.yaml` in the model
+# directory), which the model's exporter generates from the exported graphs. Every value
+# below describes one particular network; a package for another export carries its own.
+#
+# The file describes the NETWORK and overrides the package defaults for it. Host and
+# deployment behaviour (workspace, rates, tolerances, paths) stays in oneplanner.param.yaml.
+# See docs/model_contract.md for the meaning of every field.
+/**:
+  ros__parameters:
+    # The input convention the model was trained with; the node refuses any other.
+    input_convention: "oneplanner_v1"
+    # Which sensor input providers the model needs, matched by tensor name.
+    sensor_inputs: ["bev_feature"]
+    enable_context_inputs: true
+    # When the plan starts: "cloud_stamp" (every input at the cloud stamp) or "planning_time"
+    # (at the newest odometry; the graph then reads sensor_latency). The node refuses a graph
+    # that disagrees.
+    planning_time: "planning_time"
+
+    # Builder precision. With a float16-core graph the node obeys the graph's own tensor types,
+    # so fp16 here means: the core in half, the metric rim in float32.
+    precision: "fp32"
+
+    context:
+      ego_history_interval_seconds: 0.1
+      # [wheel_base, length, width] of each vehicle in the training data, in metres. The
+      # vehicle the node runs on is fed the triple whose wheel base is closest to its own
+      # (within 0.5 m). Omit the field to feed the vehicle's own dimensions from vehicle_info.
+      # training_ego_shapes: [3.0, 4.5, 1.8, 5.0, 8.0, 2.5]  # illustrative values
+      # The steering sensor's curvature bias the graph reads as ego_curvature_bias, kept once
+      # per planning tick (off: not read).
+      curvature_bias:
+        enabled: false
+        tau_s: 2.0
+        min_speed_mps: 1.0
+      # Every lane / route row's traffic light over the last seconds, as lane_signals /
+      # route_signals, each row followed by its lanelet (off: not read).
+      signal_history:
+        enabled: false
+        steps: 7
+        step_s: 0.5
+      turn_indicators:
+        # The graph carries this input for a stable signature only; perturbing it changes no
+        # output. Bind a constant, subscribe to nothing.
+        enabled: false
+
+    bev_feature:
+      history_tensor: "bev_feature_history"
+      frames: 3
+      interval_seconds: 0.5
+      bev_half_extent_m: 122.4
+      extractor:
+        precision: "fp16"
+        feature_tensor: "bev_feature"
+        max_points_per_voxel: 32  # from the voxels input shape
+        use_intensity: true  # 5 point features
+        voxels_num: [1, 128000, 256000]  # [min, opt, max]
+        point_cloud_range: [-122.4, -122.4, -3.0, 122.4, 122.4, 5.0]
+        voxel_size: [0.17, 0.17, 0.2]
+      detection:
+        # The frozen BEVFusion detection head the extractor graph carries. It emits undecoded
+        # proposals; the node decodes and suppresses them with autoware_bevfusion's
+        # postprocessing and publishes ~/output/detected_objects.
+        enabled: true
+        # One Autoware class name per head class, in the head's label order. A head class
+        # with no ObjectClassification label is written as UNKNOWN.
+        # head classes: car, truck, bus, bicycle, pedestrian, traffic_cone, barrier
+        class_names: ["CAR", "TRUCK", "BUS", "BICYCLE", "PEDESTRIAN", "UNKNOWN", "UNKNOWN"]
+        num_proposals: 500
+        out_size_factor: 8
+        # Score thresholds per (distance band, class), applied as autoware_bevfusion applies
+        # detection_score_thresholds: the box centre's radial distance picks the first band
+        # whose upper limit exceeds it, and a box beyond the last band is dropped. A released
+        # package carries the table calibrated for its head; these are placeholders.
+        distance_bin_upper_limits: [50.0, 90.0, 121.0, 200.0]
+        # distance-major: one row per band, one column per head class
+        score_thresholds: [
+          0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,  # [0, 50) m
+          0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,  # [50, 90) m
+          0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,  # [90, 121) m
+          0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1   # [121, 200) m
+        ]
+
+    postprocess:
+      prediction_tensor: "trajectory"
+      extra_trajectory_tensors: ["prior_trajectory"]
+      horizon_seconds: 6.0  # 60 steps
+      time_step: 0.1
+      generator_name: "OnePlanner_ResWorld"

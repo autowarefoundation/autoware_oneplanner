@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+  <!-- The model directory and the file names in it. The network's own description travels
+       with the model files as ml_package_<model_name>.param.yaml (the autoware_bevfusion
+       convention), so switching models or checkpoints never edits this package. -->
+  <arg name="data_path" default="$(env HOME)/autoware_data" description="root of the model directories"/>
+  <arg name="model_name" default="resworld" description="names the files in the model directory"/>
+  <arg name="model_path" default="$(var data_path)/oneplanner" description="the model directory itself"/>
+  <arg name="planner_onnx" default="$(var model_name)_planner.onnx"/>
+  <arg name="extractor_onnx" default="bevfusion_lidar_feature.onnx"/>
+  <arg name="tensorrt_plugins_path" default="$(find-pkg-share autoware_tensorrt_plugins)/plugins/libautoware_tensorrt_plugins.so" description="TensorRT plugins of the BEV feature extractor graph"/>
+
+  <arg name="param_path" default="$(find-pkg-share autoware_oneplanner)/config/oneplanner.param.yaml" description="deployment defaults (model-agnostic)"/>
+  <arg name="ml_package_param_path" default="$(var model_path)/ml_package_$(var model_name).param.yaml" description="network description, shipped with the model files"/>
+  <arg name="vehicle_info_param_path" default="$(find-pkg-share autoware_vehicle_info_utils)/config/vehicle_info.param.yaml"/>
+  <arg name="build_only" default="false" description="exit after the TensorRT engines are built"/>
+  <arg name="launch_prefix" default="" description="wrap the node process, e.g. 'gdb -ex run --args'"/>
+  <!-- Empty runs the node in a process of its own; naming a container composes it there. -->
+  <arg name="target_container" default="" description="container to compose the node into"/>
+
+  <!-- Sensing input: the concatenated point cloud in base_link (PointXYZIRC) -->
+  <arg name="input_pointcloud" default="/sensing/lidar/concatenated/pointcloud"/>
+
+  <!-- Context inputs -->
+  <arg name="input_odometry" default="/localization/kinematic_state"/>
+  <arg name="input_acceleration" default="/localization/acceleration"/>
+  <arg name="input_steering" default="/vehicle/status/steering_status"/>
+  <arg name="input_velocity" default="/vehicle/status/velocity_status"/>
+  <arg name="input_traffic_signals" default="/perception/traffic_light_recognition/traffic_signals"/>
+  <arg name="input_route" default="/planning/mission_planning/route"/>
+  <arg name="input_vector_map" default="/map/vector_map"/>
+  <arg name="input_turn_indicators" default="/vehicle/status/turn_indicators_status"/>
+
+  <arg name="output_trajectory" default="~/output/trajectory"/>
+  <arg name="output_trajectories" default="~/output/trajectories"/>
+  <!-- Published only when the model declares postprocess.turn_indicator.tensor. -->
+  <arg name="output_turn_indicators" default="~/output/turn_indicators"/>
+  <!-- Published only when the extractor graph carries a detection head and the model enables it. -->
+  <arg name="output_detected_objects" default="~/output/detected_objects"/>
+
+  <node pkg="autoware_oneplanner" exec="autoware_oneplanner_node" name="oneplanner" output="both" launch-prefix="$(var launch_prefix)" if="$(eval &quot;'$(var target_container)'==''&quot;)">
+    <param from="$(var param_path)" allow_substs="true"/>
+    <param from="$(var ml_package_param_path)" allow_substs="true"/>
+    <param from="$(var vehicle_info_param_path)" allow_substs="true"/>
+    <param name="build_only" value="$(var build_only)"/>
+    <remap from="~/input/pointcloud" to="$(var input_pointcloud)"/>
+    <remap from="~/input/odometry" to="$(var input_odometry)"/>
+    <remap from="~/input/acceleration" to="$(var input_acceleration)"/>
+    <remap from="~/input/steering" to="$(var input_steering)"/>
+    <remap from="~/input/velocity" to="$(var input_velocity)"/>
+    <remap from="~/input/traffic_signals" to="$(var input_traffic_signals)"/>
+    <remap from="~/input/route" to="$(var input_route)"/>
+    <remap from="~/input/vector_map" to="$(var input_vector_map)"/>
+    <remap from="~/input/turn_indicators" to="$(var input_turn_indicators)"/>
+    <remap from="~/output/trajectory" to="$(var output_trajectory)"/>
+    <remap from="~/output/trajectories" to="$(var output_trajectories)"/>
+    <remap from="~/output/turn_indicators" to="$(var output_turn_indicators)"/>
+    <remap from="~/output/detected_objects" to="$(var output_detected_objects)"/>
+  </node>
+
+  <!-- Composed into an existing container. Without use_intra_process_comms, as
+       autoware_bevfusion is composed: rclcpp refuses intra-process delivery for latched
+       (transient_local) subscriptions, and the route and the map are latched. -->
+  <load_composable_node target="$(var target_container)" unless="$(eval &quot;'$(var target_container)'==''&quot;)">
+    <!-- No namespace attribute: an absolute one would discard an enclosing push-ros-namespace,
+         and the composed node would publish on other topics than the standalone one. -->
+    <composable_node pkg="autoware_oneplanner" plugin="autoware::oneplanner::OnePlannerNode" name="oneplanner">
+      <param from="$(var param_path)" allow_substs="true"/>
+      <param from="$(var ml_package_param_path)" allow_substs="true"/>
+      <param from="$(var vehicle_info_param_path)" allow_substs="true"/>
+      <param name="build_only" value="$(var build_only)"/>
+      <remap from="~/input/pointcloud" to="$(var input_pointcloud)"/>
+      <remap from="~/input/odometry" to="$(var input_odometry)"/>
+      <remap from="~/input/acceleration" to="$(var input_acceleration)"/>
+      <remap from="~/input/steering" to="$(var input_steering)"/>
+      <remap from="~/input/velocity" to="$(var input_velocity)"/>
+      <remap from="~/input/traffic_signals" to="$(var input_traffic_signals)"/>
+      <remap from="~/input/route" to="$(var input_route)"/>
+      <remap from="~/input/vector_map" to="$(var input_vector_map)"/>
+      <remap from="~/input/turn_indicators" to="$(var input_turn_indicators)"/>
+      <remap from="~/output/trajectory" to="$(var output_trajectory)"/>
+      <remap from="~/output/trajectories" to="$(var output_trajectories)"/>
+      <remap from="~/output/turn_indicators" to="$(var output_turn_indicators)"/>
+      <remap from="~/output/detected_objects" to="$(var output_detected_objects)"/>
+    </composable_node>
+  </load_composable_node>
+</launch>

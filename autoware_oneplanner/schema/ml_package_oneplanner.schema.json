@@ -1,0 +1,332 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Network description (ml_package file) for autoware_oneplanner",
+  "type": "object",
+  "definitions": {
+    "ml_package_oneplanner": {
+      "type": "object",
+      "properties": {
+        "input_convention": {
+          "type": "string",
+          "description": "The input convention the model was trained with; the node feeds oneplanner_v1 and refuses any other.",
+          "enum": ["oneplanner_v1"]
+        },
+        "sensor_inputs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Sensor input providers the model needs."
+        },
+        "enable_context_inputs": {
+          "type": "boolean",
+          "description": "Produce the ego, map, route and traffic-light context tensors the graph reads.",
+          "default": true
+        },
+        "planning_time": {
+          "type": "string",
+          "description": "When the plan starts: at the cloud stamp, or at the newest odometry (the graph then reads sensor_latency).",
+          "default": "cloud_stamp",
+          "enum": ["cloud_stamp", "planning_time"]
+        },
+        "precision": {
+          "type": "string",
+          "description": "TensorRT builder precision of the planner the model was validated with.",
+          "default": "fp32",
+          "enum": ["fp32", "fp16"]
+        },
+        "context": {
+          "type": "object",
+          "properties": {
+            "ego_history_interval_seconds": {
+              "type": "number",
+              "description": "Ego history step the model was trained with; the node builds a 0.1 s grid only.",
+              "default": 0.1,
+              "exclusiveMinimum": 0
+            },
+            "training_ego_shapes": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "description": "[wheel_base, length, width] triples of the vehicles in the training data [m]; the vehicle the node runs on is fed the triple with the closest wheel base. Omitted: the vehicle's own dimensions."
+            },
+            "curvature_bias": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "description": "The graph reads ego_curvature_bias.",
+                  "default": false
+                },
+                "tau_s": {
+                  "type": "number",
+                  "description": "Time constant of the curvature bias low-pass [s].",
+                  "default": 2.0,
+                  "exclusiveMinimum": 0
+                },
+                "min_speed_mps": {
+                  "type": "number",
+                  "description": "Speed below which the curvature bias is held [m/s].",
+                  "default": 1.0,
+                  "exclusiveMinimum": 0
+                }
+              },
+              "required": ["enabled", "tau_s", "min_speed_mps"],
+              "additionalProperties": false
+            },
+            "signal_history": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "description": "The graph reads lane_signals and route_signals.",
+                  "default": false
+                },
+                "steps": {
+                  "type": "integer",
+                  "description": "Traffic-light history length of each row [steps].",
+                  "default": 7,
+                  "minimum": 1
+                },
+                "step_s": {
+                  "type": "number",
+                  "description": "Traffic-light history step [s].",
+                  "default": 0.5,
+                  "exclusiveMinimum": 0
+                }
+              },
+              "required": ["enabled", "steps", "step_s"],
+              "additionalProperties": false
+            },
+            "turn_indicators": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "description": "Whether the graph actually reads turn_indicators.",
+                  "default": true
+                }
+              },
+              "required": ["enabled"],
+              "additionalProperties": false
+            }
+          },
+          "required": ["ego_history_interval_seconds"],
+          "additionalProperties": false
+        },
+        "bev_feature": {
+          "type": "object",
+          "properties": {
+            "history_tensor": {
+              "type": "string",
+              "description": "Name of the graph's BEV history input.",
+              "default": "bev_feature_history"
+            },
+            "frames": {
+              "type": "integer",
+              "description": "BEV history length [maps], current first.",
+              "default": 3,
+              "minimum": 2
+            },
+            "interval_seconds": {
+              "type": "number",
+              "description": "Time between two history steps [s].",
+              "default": 0.2,
+              "exclusiveMinimum": 0
+            },
+            "bev_half_extent_m": {
+              "type": "number",
+              "description": "Half side of the square the BEV map covers [m].",
+              "default": 122.4,
+              "exclusiveMinimum": 0
+            },
+            "extractor": {
+              "type": "object",
+              "properties": {
+                "precision": {
+                  "type": "string",
+                  "description": "TensorRT builder precision of the extractor.",
+                  "default": "fp16",
+                  "enum": ["fp32", "fp16"]
+                },
+                "feature_tensor": {
+                  "type": "string",
+                  "description": "Name of the extractor's feature map output.",
+                  "default": "bev_feature"
+                },
+                "max_points_per_voxel": {
+                  "type": "integer",
+                  "description": "Points per voxel of the voxels input.",
+                  "minimum": 1
+                },
+                "use_intensity": {
+                  "type": "boolean",
+                  "description": "Whether the point features include the intensity (5 features, else 4)."
+                },
+                "voxels_num": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  },
+                  "description": "Voxel count optimization profile [min, opt, max].",
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "point_cloud_range": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "description": "Voxelization range [x min, y min, z min, x max, y max, z max] [m].",
+                  "minItems": 6,
+                  "maxItems": 6
+                },
+                "voxel_size": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "description": "Voxel size [x, y, z] [m].",
+                  "minItems": 3,
+                  "maxItems": 3
+                }
+              },
+              "required": [
+                "max_points_per_voxel",
+                "use_intensity",
+                "voxels_num",
+                "point_cloud_range",
+                "voxel_size"
+              ],
+              "additionalProperties": false
+            },
+            "detection": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "description": "Decode and publish the detection head the extractor graph carries.",
+                  "default": false
+                },
+                "class_names": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "One Autoware class name per head class, in label order; UNKNOWN for a class with no ObjectClassification label."
+                },
+                "num_proposals": {
+                  "type": "integer",
+                  "description": "Proposals the head emits.",
+                  "minimum": 1
+                },
+                "out_size_factor": {
+                  "type": "integer",
+                  "description": "BEV stride the head decodes box centres with.",
+                  "minimum": 1
+                },
+                "distance_bin_upper_limits": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "description": "Upper limits of the score-threshold distance bands, ascending [m]."
+                },
+                "score_thresholds": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "description": "One score threshold per class per band, distance-major."
+                }
+              },
+              "required": ["enabled"],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "history_tensor",
+            "frames",
+            "interval_seconds",
+            "bev_half_extent_m",
+            "extractor"
+          ],
+          "additionalProperties": false
+        },
+        "postprocess": {
+          "type": "object",
+          "properties": {
+            "prediction_tensor": {
+              "type": "string",
+              "description": "Name of the graph's trajectory output, [B, A, T, 4] or [B, T, 4].",
+              "default": "prediction"
+            },
+            "extra_trajectory_tensors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Further ego-only trajectory outputs, published as extra candidates."
+            },
+            "horizon_seconds": {
+              "type": "number",
+              "description": "Horizon of the trajectory output [s]; T = horizon / time_step.",
+              "default": 4.0,
+              "exclusiveMinimum": 0
+            },
+            "time_step": {
+              "type": "number",
+              "description": "Step of the trajectory output [s]; must be 0.1.",
+              "default": 0.1,
+              "exclusiveMinimum": 0
+            },
+            "generator_name": {
+              "type": "string",
+              "description": "Generator name of the candidate trajectories.",
+              "default": "OnePlanner"
+            },
+            "turn_indicator": {
+              "type": "object",
+              "properties": {
+                "tensor": {
+                  "type": "string",
+                  "description": "Name of the graph's [B, 3] turn-indicator logits output; empty when the graph has none.",
+                  "default": ""
+                }
+              },
+              "required": ["tensor"],
+              "additionalProperties": false
+            }
+          },
+          "required": ["prediction_tensor", "horizon_seconds", "time_step"],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "input_convention",
+        "sensor_inputs",
+        "enable_context_inputs",
+        "planning_time",
+        "context",
+        "bev_feature",
+        "postprocess"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "properties": {
+    "/**": {
+      "type": "object",
+      "properties": {
+        "ros__parameters": {
+          "$ref": "#/definitions/ml_package_oneplanner"
+        }
+      },
+      "required": ["ros__parameters"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["/**"],
+  "additionalProperties": false
+}

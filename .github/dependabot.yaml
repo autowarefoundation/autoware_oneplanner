@@ -1,0 +1,12 @@
+# Taken from https://github.com/autowarefoundation/sync-file-templates
+
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    # https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file#scheduleinterval
+    schedule:
+      interval: monthly
+    labels:
+      - tag:bot
+      - type:github-actions

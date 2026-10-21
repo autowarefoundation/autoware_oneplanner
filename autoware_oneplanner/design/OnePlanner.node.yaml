@@ -1,0 +1,75 @@
+autoware_system_design_format: 0.3.0
+
+# node information
+name: OnePlanner.node
+
+package:
+  name: autoware_oneplanner
+  provider: autoware
+
+launch:
+  plugin: autoware::oneplanner::OnePlannerNode
+  executable: autoware_oneplanner_node
+  node_output: screen
+
+# interfaces
+subscribers:
+  - name: pointcloud
+    message_type: sensor_msgs/msg/PointCloud2
+    remap_target: input/pointcloud
+  - name: odometry
+    message_type: nav_msgs/msg/Odometry
+    remap_target: input/odometry
+  - name: acceleration
+    message_type: geometry_msgs/msg/AccelWithCovarianceStamped
+    remap_target: input/acceleration
+  - name: steering
+    message_type: autoware_vehicle_msgs/msg/SteeringReport
+    remap_target: input/steering
+  - name: velocity
+    message_type: autoware_vehicle_msgs/msg/VelocityReport
+    remap_target: input/velocity
+  - name: traffic_signals
+    message_type: autoware_perception_msgs/msg/TrafficLightGroupArray
+    remap_target: input/traffic_signals
+  - name: route
+    message_type: autoware_planning_msgs/msg/LaneletRoute
+    remap_target: input/route
+  - name: vector_map
+    message_type: autoware_map_msgs/msg/LaneletMapBin
+    remap_target: input/vector_map
+  - name: turn_indicators
+    message_type: autoware_vehicle_msgs/msg/TurnIndicatorsReport
+    remap_target: input/turn_indicators
+
+publishers:
+  - name: trajectory
+    message_type: autoware_planning_msgs/msg/Trajectory
+    remap_target: output/trajectory
+  - name: trajectories
+    message_type: autoware_internal_planning_msgs/msg/CandidateTrajectories
+    remap_target: output/trajectories
+  - name: turn_indicators
+    message_type: autoware_vehicle_msgs/msg/TurnIndicatorsCommand
+    remap_target: output/turn_indicators
+  - name: detected_objects
+    message_type: autoware_perception_msgs/msg/DetectedObjects
+    remap_target: output/detected_objects
+
+# parameters
+param_files:
+  - name: param_file
+    default: config/oneplanner.param.yaml
+
+param_values: []
+
+# processes
+processes:
+  - name: plan
+    trigger_conditions:
+      - on_input: pointcloud
+    outcomes:
+      - to_output: trajectory
+      - to_output: trajectories
+      - to_output: turn_indicators
+      - to_output: detected_objects
