@@ -8,6 +8,10 @@ LiDAR's rate. It supports the [ResWorld](https://arxiv.org/abs/2602.10884) archi
 planner over a temporal history of LiDAR bird's-eye-view features from a frozen BEVFusion-L
 backbone, with vector-map and route context.
 
+<p align="center">
+  <img src="media/oneplanner_demo.webp" width="100%" alt="OnePlanner on a replayed urban drive: the bird's-eye view with the LiDAR cloud, vector map, route, traffic-light states, detected objects and the planned trajectory, beside the planned and driven speed">
+</p>
+
 ```text
 LiDAR cloud ──► voxelization ──► BEV feature extractor ──► temporal cache + SE(2) warp ─┐
 odometry, acceleration, steering ──► ego state and history ─────────────────────────────┼─► planner ──► Trajectory
@@ -33,6 +37,31 @@ map, route, traffic lights ──► lanes, route lanes, polygons, line strings,
   It carries adapted copies of the few `autoware_universe` parts it needs, under its own
   namespace. At run time the BEV feature extractor also needs `autoware_tensorrt_plugins` from
   Autoware Universe.
+
+## Results
+
+<p align="center">
+  <img src="media/oneplanner_scenes.png" width="100%" alt="Four scenes: a right turn through a signalized intersection, starting on green and turning left, stopping for a red light, and keeping the lane at 47 km/h">
+</p>
+
+The animation and the scenes are open-loop replays of a recorded urban drive through the node
+with a ResWorld model. Each bird's-eye view is drawn in the frame the plan starts in: the vector
+map, route and traffic-light states exactly as the model was fed them, the LiDAR cloud and the
+objects of the extractor's detection head, the planned 6 s trajectory and, dashed, the path the
+vehicle actually drove next. The panel beside the animation compares the planned speed profile
+with the driven one.
+
+Timing of the node on an NVIDIA RTX PRO 6000 Blackwell Max-Q, over 2,781 passes of the same
+replay with the rest of the replay stack running on the machine:
+
+| Stage                                                                           | p50     | p95     | p99     |
+| ------------------------------------------------------------------------------- | ------- | ------- | ------- |
+| Whole pass, up to the published trajectory (`~/debug/processing_time_ms`)       | 12.8 ms | 20.6 ms | 28.5 ms |
+| Planner inference (`~/debug/processing_time/inference_ms`)                      | 9.2 ms  | 14.4 ms | 18.5 ms |
+| Context tensors: map, route, ego (`~/debug/processing_time/collect/context_ms`) | 1.7 ms  | 3.7 ms  | 6.0 ms  |
+
+The BEV feature extraction runs in the point cloud callback before the pass and is not part of
+these times; its GPU time is reported as `bev_feature.extraction_gpu_ms` on `inference_status`.
 
 ## Requirements
 
