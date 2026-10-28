@@ -9,7 +9,7 @@ planner over a temporal history of LiDAR bird's-eye-view features from a frozen 
 backbone, with vector-map and route context.
 
 <p align="center">
-  <img src="media/oneplanner_demo.webp" width="100%" alt="OnePlanner on a replayed urban drive: the bird's-eye view with the LiDAR cloud, vector map, route, traffic-light states, detected objects and the planned trajectory, beside the planned and driven speed">
+  <img src="media/oneplanner_demo.webp" width="100%" alt="OnePlanner on replayed urban drives, seen from a chase camera: the LiDAR cloud, the vector map and route on the ground, traffic-light states at the stop lines, detected objects as 3D boxes and the planned 6 s trajectory as a ribbon, beside a bird's-eye view and the planned and driven speed">
 </p>
 
 ```text
@@ -41,24 +41,24 @@ map, route, traffic lights ──► lanes, route lanes, polygons, line strings,
 ## Results
 
 <p align="center">
-  <img src="media/oneplanner_scenes.png" width="100%" alt="Four scenes: a right turn through a signalized intersection, starting on green and turning left, stopping for a red light, and keeping the lane at 47 km/h">
+  <img src="media/oneplanner_scenes.png" width="100%" alt="Six scenes: crossing a large intersection on green, a right turn at a signalized intersection, a sweeping curve at 40 km/h, holding at a red light and turning left on green, stopping for a red light, and slowing behind traffic queued at a red light">
 </p>
 
-The animation and the scenes are open-loop replays of a recorded urban drive through the node
-with a ResWorld model. Each bird's-eye view is drawn in the frame the plan starts in: the vector
-map, route and traffic-light states exactly as the model was fed them, the LiDAR cloud and the
-objects of the extractor's detection head, the planned 6 s trajectory and, dashed, the path the
-vehicle actually drove next. The panel beside the animation compares the planned speed profile
-with the driven one.
+The animation and the scenes are open-loop replays of two recorded urban drives through the node
+with a ResWorld model; a person drove the vehicle. Each view is drawn in the frame the plan starts
+in: the vector map, route and traffic-light states exactly as the model was fed them, the LiDAR
+cloud and the objects of the extractor's detection head, the planned 6 s trajectory (the green
+ribbon) and, dashed, the path the driver actually took next. The panels beside the animation show
+the same frame from above and the planned speed profile against the driven one.
 
-Timing of the node on an NVIDIA RTX PRO 6000 Blackwell Max-Q, over 2,781 passes of the same
-replay with the rest of the replay stack running on the machine:
+Timing of the node on an NVIDIA RTX PRO 6000 Blackwell Max-Q over 3,899 passes of these replays,
+with the node the only planner on the GPU:
 
 | Stage                                                                           | p50     | p95     | p99     |
 | ------------------------------------------------------------------------------- | ------- | ------- | ------- |
-| Whole pass, up to the published trajectory (`~/debug/processing_time_ms`)       | 12.8 ms | 20.6 ms | 28.5 ms |
-| Planner inference (`~/debug/processing_time/inference_ms`)                      | 9.2 ms  | 14.4 ms | 18.5 ms |
-| Context tensors: map, route, ego (`~/debug/processing_time/collect/context_ms`) | 1.7 ms  | 3.7 ms  | 6.0 ms  |
+| Whole pass, up to the published trajectory (`~/debug/processing_time_ms`)       | 12.7 ms | 18.7 ms | 26.1 ms |
+| Planner inference (`~/debug/processing_time/inference_ms`)                      | 9.4 ms  | 12.5 ms | 17.0 ms |
+| Context tensors: map, route, ego (`~/debug/processing_time/collect/context_ms`) | 1.5 ms  | 3.2 ms  | 5.0 ms  |
 
 The BEV feature extraction runs in the point cloud callback before the pass and is not part of
 these times; its GPU time is reported as `bev_feature.extraction_gpu_ms` on `inference_status`.
