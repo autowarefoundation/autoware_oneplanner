@@ -101,7 +101,13 @@ is an example.
 
 ## How to run
 
+The released model is
+[AutowareFoundation/oneplanner](https://huggingface.co/AutowareFoundation/oneplanner) on Hugging
+Face; download it into the default model directory, then launch:
+
 ```bash
+hf download AutowareFoundation/oneplanner --revision v1.0 --exclude "media/*" "replay.mp4" \
+  --local-dir ~/autoware_data/oneplanner
 ros2 launch autoware_oneplanner oneplanner.launch.xml \
   model_path:=$HOME/autoware_data/oneplanner model_name:=oneplanner
 ```

@@ -89,10 +89,18 @@ colcon build --packages-up-to autoware_oneplanner --cmake-args -DCMAKE_BUILD_TYP
 
 ## Models
 
-Model files are distributed separately from this repository, and training and exporting models
-are not part of it. A model directory holds the planner
-graph, the BEV feature extractor graph and an `ml_package_<model_name>.param.yaml` file that
-describes the network:
+The OnePlanner model is released on Hugging Face as
+[AutowareFoundation/oneplanner](https://huggingface.co/AutowareFoundation/oneplanner), where its
+model card describes it. Download a tagged version into the node's default model directory with
+the `hf` CLI (`pip install huggingface_hub`):
+
+```bash
+hf download AutowareFoundation/oneplanner --revision v1.0 --exclude "media/*" "replay.mp4" \
+  --local-dir ~/autoware_data/oneplanner
+```
+
+A model directory holds the planner graph, the BEV feature extractor graph and an
+`ml_package_<model_name>.param.yaml` file that describes the network:
 
 ```text
 ~/autoware_data/oneplanner/
@@ -101,6 +109,7 @@ describes the network:
 └── ml_package_oneplanner.param.yaml
 ```
 
+Training and exporting models are not part of this repository.
 [docs/model_contract.md](autoware_oneplanner/docs/model_contract.md) specifies what a model
 package must provide and exactly what the node feeds it, for anyone exporting a model for this
 node.
