@@ -236,7 +236,8 @@ private:
   //! Only when the model has a turn-indicator output (`postprocess.turn_indicator.tensor`).
   rclcpp::Publisher<autoware_vehicle_msgs::msg::TurnIndicatorsCommand>::SharedPtr
     pub_turn_indicators_;
-  std::unique_ptr<TurnIndicatorFilter> turn_indicator_filter_;
+  //! One filter per batch of the turn-indicator output; empty without that output.
+  std::vector<TurnIndicatorFilter> turn_indicator_filters_;
   std::string turn_indicator_tensor_;
   TurnIndicatorFilter::Params turn_indicator_params_;
   rclcpp::Publisher<autoware_internal_debug_msgs::msg::Float64Stamped>::SharedPtr
