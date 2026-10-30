@@ -135,6 +135,7 @@ TEST(TrajectoryPostprocessorTest, ProducesTrajectoryInMapFrame)
   const auto outputs = make_straight_prediction(1, step_m);
 
   unique_identifier_msgs::msg::UUID uuid;
+  uuid.uuid.fill(7);
   const auto result = postprocessor.process(outputs, ego, rclcpp::Time(0), uuid);
 
   // The model's steps, led by the ego pose at t = 0.
@@ -162,6 +163,11 @@ TEST(TrajectoryPostprocessorTest, ProducesTrajectoryInMapFrame)
   EXPECT_EQ(
     result.candidate_trajectories.generator_info.front().generator_name.data,
     "TestGenerator_batch_0");
+  // The candidate and its generator info carry the generator UUID and the trajectory header.
+  const auto & candidate = result.candidate_trajectories.candidate_trajectories.front();
+  EXPECT_EQ(candidate.generator_id, uuid);
+  EXPECT_EQ(result.candidate_trajectories.generator_info.front().generator_id, uuid);
+  EXPECT_EQ(candidate.header, result.trajectory.header);
 }
 
 TEST(TrajectoryPostprocessorTest, AppliesBaseLinkOffsetInReverse)
