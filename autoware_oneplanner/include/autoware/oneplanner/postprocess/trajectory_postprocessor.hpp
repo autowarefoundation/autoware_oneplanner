@@ -95,6 +95,7 @@ public:
     const TensorMap & outputs, const EgoFrame & ego, const rclcpp::Time & stamp,
     const unique_identifier_msgs::msg::UUID & generator_uuid) const;
 
+  int64_t batch_size() const { return batch_size_; }
   int64_t num_timesteps() const { return num_timesteps_; }
   int64_t num_agents() const { return num_agents_; }
 

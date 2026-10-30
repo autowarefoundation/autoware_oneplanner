@@ -14,6 +14,7 @@
 
 #include "autoware/oneplanner/oneplanner_node.hpp"
 
+#include "autoware/oneplanner/candidate_turn_indicators.hpp"
 #include "autoware/oneplanner/geometry.hpp"
 #include "autoware/oneplanner/input_provider_registry.hpp"
 #include "autoware/oneplanner/training_ego_shape.hpp"
@@ -25,6 +26,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstddef>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -475,12 +477,18 @@ void OnePlannerNode::initialize_pipeline()
   postprocessor_->validate_output_specs(engine_->output_specs());
   if (!turn_indicator_tensor_.empty()) {
     const TensorSpec * spec = find_spec(engine_->output_specs(), turn_indicator_tensor_);
-    if (!spec || spec->shape.size() != 2 || spec->shape[1] != TurnIndicatorFilter::kNumClasses) {
+    if (
+      !spec || spec->shape.size() != 2 ||
+      (spec->shape[0] != 1 && spec->shape[0] != postprocessor_->batch_size()) ||
+      spec->shape[1] != TurnIndicatorFilter::kNumClasses) {
       throw std::runtime_error(
         "postprocess.turn_indicator.tensor '" + turn_indicator_tensor_ +
-        "' must be a model output of shape [B, 3] (DISABLE, ENABLE_LEFT, ENABLE_RIGHT)");
+        "' must be a model output of shape [B, 3] (DISABLE, ENABLE_LEFT, ENABLE_RIGHT), with B "
+        "1 or the batch size of the prediction (" +
+        std::to_string(postprocessor_->batch_size()) + ")");
     }
-    turn_indicator_filter_ = std::make_unique<TurnIndicatorFilter>(turn_indicator_params_);
+    turn_indicator_filters_.assign(
+      static_cast<size_t>(spec->shape[0]), TurnIndicatorFilter(turn_indicator_params_));
   }
 
   diagnostics_->update_level_and_message(DiagnosticStatus::OK, "Model loaded");
@@ -780,23 +788,34 @@ bool OnePlannerNode::run_tick(TickTiming & timing)
     dump_tensors(inputs, outputs, *ego);
   }
 
-  pub_trajectory_->publish(output.trajectory);
-  pub_trajectories_->publish(output.candidate_trajectories);
-  if (turn_indicator_filter_) {
+  if (!turn_indicator_filters_.empty()) {
+    constexpr size_t kNumClasses = TurnIndicatorFilter::kNumClasses;
     const auto logits = outputs.find(turn_indicator_tensor_);
-    if (logits == outputs.end() || logits->second.host_data.size() < 3) {
+    if (
+      logits == outputs.end() ||
+      logits->second.host_data.size() < turn_indicator_filters_.size() * kNumClasses) {
       RCLCPP_ERROR_STREAM_THROTTLE(
         get_logger(), *get_clock(), LOG_THROTTLE_INTERVAL_MS,
-        "Turn indicator output '" << turn_indicator_tensor_ << "' missing from the inference");
+        "Turn indicator output '" << turn_indicator_tensor_
+                                  << "' missing from the inference or too small");
     } else {
-      autoware_vehicle_msgs::msg::TurnIndicatorsCommand command;
-      command.stamp = ego->stamp;
-      command.command = turn_indicator_filter_->update(
-        std::vector<float>(logits->second.host_data.begin(), logits->second.host_data.begin() + 3),
-        ego->stamp.seconds());
-      pub_turn_indicators_->publish(command);
+      std::vector<autoware_vehicle_msgs::msg::TurnIndicatorsCommand> commands(
+        turn_indicator_filters_.size());
+      for (size_t batch = 0; batch < turn_indicator_filters_.size(); ++batch) {
+        const auto begin =
+          logits->second.host_data.begin() + static_cast<std::ptrdiff_t>(batch * kNumClasses);
+        commands[batch].stamp = ego->stamp;
+        commands[batch].command = turn_indicator_filters_[batch].update(
+          std::vector<float>(begin, begin + static_cast<std::ptrdiff_t>(kNumClasses)),
+          ego->stamp.seconds());
+      }
+      set_candidate_turn_indicators(output.candidate_trajectories.candidate_trajectories, commands);
+      // The standalone topic carries the command of the first batch, like `output.trajectory`.
+      pub_turn_indicators_->publish(commands.front());
     }
   }
+  pub_trajectory_->publish(output.trajectory);
+  pub_trajectories_->publish(output.candidate_trajectories);
   publish_planning_factor(output.trajectory);
 
   // Timing: the whole tick must fit in the planning period to sustain the output rate.

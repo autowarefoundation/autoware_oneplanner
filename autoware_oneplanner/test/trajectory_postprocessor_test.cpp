@@ -14,6 +14,10 @@
 
 #include "autoware/oneplanner/postprocess/trajectory_postprocessor.hpp"
 
+#include "autoware/oneplanner/candidate_turn_indicators.hpp"
+
+#include <autoware_vehicle_msgs/msg/turn_indicators_command.hpp>
+
 #include <gtest/gtest.h>
 
 #include <cmath>
@@ -170,6 +174,91 @@ TEST(TrajectoryPostprocessorTest, ProducesTrajectoryInMapFrame)
   EXPECT_EQ(result.candidate_trajectories.generator_info.front().generator_id, uuid);
   EXPECT_EQ(candidate.header, result.trajectory.header);
   EXPECT_EQ(candidate.points, result.trajectory.points);
+}
+
+namespace
+{
+constexpr int64_t kTwoBatches = 2;
+
+/// Candidates of a prediction with two batches and one extra trajectory output.
+autoware_internal_planning_msgs::msg::CandidateTrajectories make_two_batch_candidates()
+{
+  auto params = make_params();
+  params.extra_trajectory_tensors = {"prior_trajectory"};
+  TrajectoryPostprocessor postprocessor(params);
+  postprocessor.validate_output_specs({
+    {"prediction", {kTwoBatches, kTimesteps, 4}, TensorDataType::kFLOAT32},
+    {"prior_trajectory", {kTwoBatches, kTimesteps, 4}, TensorDataType::kFLOAT32},
+  });
+
+  const auto straight = [](const double step_m) {
+    std::vector<float> data;
+    for (int64_t batch = 0; batch < kTwoBatches; ++batch) {
+      for (int64_t t = 0; t < kTimesteps; ++t) {
+        data.insert(
+          data.end(), {static_cast<float>(step_m * static_cast<double>(t + 1)), 0.f, 1.f, 0.f});
+      }
+    }
+    return Tensor::from_host({kTwoBatches, kTimesteps, 4}, std::move(data));
+  };
+  TensorMap outputs;
+  outputs.emplace("prediction", straight(1.0));
+  outputs.emplace("prior_trajectory", straight(0.5));
+
+  unique_identifier_msgs::msg::UUID uuid;
+  return postprocessor.process(outputs, make_ego_frame(0.0, 0.0, 10.0), rclcpp::Time(0), uuid)
+    .candidate_trajectories;
+}
+
+/// The batch index at the end of a generator name such as "TestGenerator_batch_1".
+size_t batch_of(const std::string & generator_name)
+{
+  const std::string marker = "_batch_";
+  return std::stoul(generator_name.substr(generator_name.rfind(marker) + marker.size()));
+}
+}  // namespace
+
+TEST(TrajectoryPostprocessorTest, CandidatesComeInBatchOrder)
+{
+  // set_candidate_turn_indicators gives candidate k the command of batch k % B, which needs
+  // this order: the prediction's batches, then each extra output's batches.
+  const auto candidates = make_two_batch_candidates();
+  ASSERT_EQ(candidates.generator_info.size(), 4U);
+  const std::vector<std::string> expected = {
+    "TestGenerator_batch_0", "TestGenerator_batch_1", "TestGenerator_prior_trajectory_batch_0",
+    "TestGenerator_prior_trajectory_batch_1"};
+  for (size_t k = 0; k < expected.size(); ++k) {
+    EXPECT_EQ(candidates.generator_info[k].generator_name.data, expected[k]);
+    EXPECT_EQ(batch_of(expected[k]), k % kTwoBatches);
+  }
+}
+
+TEST(TrajectoryPostprocessorTest, CandidatesGetTheTurnIndicatorOfTheirBatch)
+{
+#ifdef ONEPLANNER_HAS_CANDIDATE_TURN_INDICATOR
+  using autoware_vehicle_msgs::msg::TurnIndicatorsCommand;
+  // On the real message, so that the member check cannot turn the feature off unnoticed.
+  static_assert(
+    HasTurnIndicatorsCommand<autoware_internal_planning_msgs::msg::CandidateTrajectory>::value);
+
+  auto candidates = make_two_batch_candidates();
+  ASSERT_EQ(candidates.candidate_trajectories.size(), 4U);
+
+  std::vector<TurnIndicatorsCommand> commands(kTwoBatches);
+  commands[0].command = TurnIndicatorsCommand::ENABLE_LEFT;
+  commands[1].command = TurnIndicatorsCommand::ENABLE_RIGHT;
+  set_candidate_turn_indicators(candidates.candidate_trajectories, commands);
+
+  for (size_t k = 0; k < candidates.candidate_trajectories.size(); ++k) {
+    const auto & name = candidates.generator_info[k].generator_name.data;
+    EXPECT_EQ(
+      candidates.candidate_trajectories[k].turn_indicators_command.command,
+      commands[batch_of(name)].command)
+      << name;
+  }
+#else
+  GTEST_SKIP() << "autoware_internal_planning_msgs before 1.14.0 has no turn_indicators_command";
+#endif
 }
 
 TEST(TrajectoryPostprocessorTest, AppliesBaseLinkOffsetInReverse)

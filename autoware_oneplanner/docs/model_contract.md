@@ -119,7 +119,7 @@ everything from the manifest.
 | ---------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------- |
 | `postprocess.prediction_tensor`                | `[B, A, T, 4]` or `[B, T, 4]` | x, y, cos(yaw), sin(yaw) at 0.1 s, 0.2 s, ... in the planning frame; agent 0 is the ego |
 | each of `postprocess.extra_trajectory_tensors` | `[B, T, 4]`                   | Further ego trajectories, published as extra candidates                                 |
-| `postprocess.turn_indicator.tensor`, optional  | `[B, 3]`                      | Logits of DISABLE, ENABLE_LEFT, ENABLE_RIGHT                                            |
+| `postprocess.turn_indicator.tensor`, optional  | `[B, 3]`                      | Logits of DISABLE, ENABLE_LEFT, ENABLE_RIGHT; B is 1 or the B of the prediction         |
 
 T must equal `postprocess.horizon_seconds / 0.1`. Outputs must be float32.
 

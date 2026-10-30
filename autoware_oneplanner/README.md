@@ -52,15 +52,15 @@ start-up the node regularly runs before the publishers it reads; it waits for th
 
 ### Outputs
 
-| Name                                    | Type                                                        | Description                                                                                              |
-| --------------------------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `~/output/trajectory`                   | `autoware_planning_msgs/msg/Trajectory`                     | Ego trajectory in `map`, a point at t = 0 then one per 0.1 s of the model's horizon                      |
-| `~/output/trajectories`                 | `autoware_internal_planning_msgs/msg/CandidateTrajectories` | One candidate per batch and per extra trajectory output, with `GeneratorInfo`                            |
-| `~/output/turn_indicators`              | `autoware_vehicle_msgs/msg/TurnIndicatorsCommand`           | When the model has a turn-indicator output                                                               |
-| `~/output/detected_objects`             | `autoware_perception_msgs/msg/DetectedObjects`              | When the extractor carries a detection head and the model enables it; one per LiDAR frame                |
-| `/planning/planning_factors/oneplanner` | `autoware_internal_planning_msgs/msg/PlanningFactorArray`   | Stop and slow-down read off the trajectory, when `planning_factor.enable_*` is set                       |
-| `/diagnostics`                          | `diagnostic_msgs/msg/DiagnosticArray`                       | `inference_status`                                                                                       |
-| `~/debug/...`                           | `autoware_internal_debug_msgs/msg/Float64Stamped`           | Processing time per stage and latency; see [docs/design.md](docs/design.md#diagnostics-and-debug-topics) |
+| Name                                    | Type                                                        | Description                                                                                                                                         |
+| --------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `~/output/trajectory`                   | `autoware_planning_msgs/msg/Trajectory`                     | Ego trajectory in `map`, a point at t = 0 then one per 0.1 s of the model's horizon                                                                 |
+| `~/output/trajectories`                 | `autoware_internal_planning_msgs/msg/CandidateTrajectories` | One candidate per batch and per extra trajectory output, with `GeneratorInfo` and, from `autoware_internal_msgs` 1.14.0, its batch's turn indicator |
+| `~/output/turn_indicators`              | `autoware_vehicle_msgs/msg/TurnIndicatorsCommand`           | When the model has a turn-indicator output                                                                                                          |
+| `~/output/detected_objects`             | `autoware_perception_msgs/msg/DetectedObjects`              | When the extractor carries a detection head and the model enables it; one per LiDAR frame                                                           |
+| `/planning/planning_factors/oneplanner` | `autoware_internal_planning_msgs/msg/PlanningFactorArray`   | Stop and slow-down read off the trajectory, when `planning_factor.enable_*` is set                                                                  |
+| `/diagnostics`                          | `diagnostic_msgs/msg/DiagnosticArray`                       | `inference_status`                                                                                                                                  |
+| `~/debug/...`                           | `autoware_internal_debug_msgs/msg/Float64Stamped`           | Processing time per stage and latency; see [docs/design.md](docs/design.md#diagnostics-and-debug-topics)                                            |
 
 ## Parameters
 

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "autoware/oneplanner/candidate_turn_indicators.hpp"
 #include "autoware/oneplanner/curvature_bias.hpp"
 #include "autoware/oneplanner/engine_identity.hpp"
 #include "autoware/oneplanner/planning_time.hpp"
@@ -335,6 +336,49 @@ TEST(TimestampedBuffer, SupportsATenHertzGridFromIrregularOdometry)
     EXPECT_NEAR(
       a.value + ratio * (b.value - a.value), static_cast<double>(target) * 1e-9 * 10.0, 1e-9);
   }
+}
+
+namespace
+{
+struct CandidateWithIndicator
+{
+  int turn_indicators_command{0};
+};
+struct CandidateWithoutIndicator
+{
+  int points{0};
+};
+}  // namespace
+
+TEST(CandidateTurnIndicators, EachCandidateGetsTheCommandOfItsBatch)
+{
+  // Two batches: the prediction candidates of batch 0 and 1, then an extra output's.
+  std::vector<CandidateWithIndicator> candidates(4);
+  set_candidate_turn_indicators(candidates, std::vector<int>{2, 3});
+  EXPECT_EQ(candidates[0].turn_indicators_command, 2);
+  EXPECT_EQ(candidates[1].turn_indicators_command, 3);
+  EXPECT_EQ(candidates[2].turn_indicators_command, 2);
+  EXPECT_EQ(candidates[3].turn_indicators_command, 3);
+
+  // One command, from a turn indicator output with batch size 1: every candidate gets it.
+  set_candidate_turn_indicators(candidates, std::vector<int>{1});
+  for (const auto & candidate : candidates) {
+    EXPECT_EQ(candidate.turn_indicators_command, 1);
+  }
+
+  // No commands: the candidates keep their value.
+  set_candidate_turn_indicators(candidates, std::vector<int>{});
+  EXPECT_EQ(candidates[0].turn_indicators_command, 1);
+}
+
+TEST(CandidateTurnIndicators, MessageWithoutTheFieldIsLeftAlone)
+{
+  // CandidateTrajectory of autoware_internal_msgs before 1.14.0 has no turn_indicators_command.
+  static_assert(HasTurnIndicatorsCommand<CandidateWithIndicator>::value);
+  static_assert(!HasTurnIndicatorsCommand<CandidateWithoutIndicator>::value);
+  // The check is that this compiles: the field is not touched when it does not exist.
+  std::vector<CandidateWithoutIndicator> candidates(2);
+  set_candidate_turn_indicators(candidates, std::vector<int>{2});
 }
 
 TEST(TurnIndicatorFilter, HoldsACommandSteady)
