@@ -360,9 +360,15 @@ TEST(CandidateTurnIndicators, EachCandidateGetsTheCommandOfItsBatch)
   EXPECT_EQ(candidates[2].turn_indicators_command, 2);
   EXPECT_EQ(candidates[3].turn_indicators_command, 3);
 
+  // One command, from a turn indicator output with batch size 1: every candidate gets it.
+  set_candidate_turn_indicators(candidates, std::vector<int>{1});
+  for (const auto & candidate : candidates) {
+    EXPECT_EQ(candidate.turn_indicators_command, 1);
+  }
+
   // No commands: the candidates keep their value.
   set_candidate_turn_indicators(candidates, std::vector<int>{});
-  EXPECT_EQ(candidates[0].turn_indicators_command, 2);
+  EXPECT_EQ(candidates[0].turn_indicators_command, 1);
 }
 
 TEST(CandidateTurnIndicators, MessageWithoutTheFieldIsLeftAlone)

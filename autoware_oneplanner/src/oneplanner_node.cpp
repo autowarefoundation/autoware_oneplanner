@@ -478,12 +478,13 @@ void OnePlannerNode::initialize_pipeline()
   if (!turn_indicator_tensor_.empty()) {
     const TensorSpec * spec = find_spec(engine_->output_specs(), turn_indicator_tensor_);
     if (
-      !spec || spec->shape.size() != 2 || spec->shape[0] != postprocessor_->batch_size() ||
+      !spec || spec->shape.size() != 2 ||
+      (spec->shape[0] != 1 && spec->shape[0] != postprocessor_->batch_size()) ||
       spec->shape[1] != TurnIndicatorFilter::kNumClasses) {
       throw std::runtime_error(
         "postprocess.turn_indicator.tensor '" + turn_indicator_tensor_ +
-        "' must be a model output of shape [B, 3] (DISABLE, ENABLE_LEFT, ENABLE_RIGHT), with "
-        "the batch size B of the prediction (" +
+        "' must be a model output of shape [B, 3] (DISABLE, ENABLE_LEFT, ENABLE_RIGHT), with B "
+        "1 or the batch size of the prediction (" +
         std::to_string(postprocessor_->batch_size()) + ")");
     }
     turn_indicator_filters_.assign(
@@ -795,7 +796,8 @@ bool OnePlannerNode::run_tick(TickTiming & timing)
       logits->second.host_data.size() < turn_indicator_filters_.size() * kNumClasses) {
       RCLCPP_ERROR_STREAM_THROTTLE(
         get_logger(), *get_clock(), LOG_THROTTLE_INTERVAL_MS,
-        "Turn indicator output '" << turn_indicator_tensor_ << "' missing from the inference");
+        "Turn indicator output '" << turn_indicator_tensor_
+                                  << "' missing from the inference or too small");
     } else {
       std::vector<autoware_vehicle_msgs::msg::TurnIndicatorsCommand> commands(
         turn_indicator_filters_.size());

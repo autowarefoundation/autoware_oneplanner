@@ -24,7 +24,7 @@ namespace autoware::oneplanner
 {
 
 /// True when `Candidate` has a `turn_indicators_command` member. CandidateTrajectory has it from
-/// autoware_internal_msgs 1.14.0 on; Autoware 1.x ships an older version without it.
+/// autoware_internal_msgs 1.14.0 on; older versions, as in Autoware 1.9.0, lack it.
 template <typename Candidate, typename = void>
 struct HasTurnIndicatorsCommand : std::false_type
 {
@@ -41,11 +41,13 @@ struct HasTurnIndicatorsCommand<
  * @brief Set the turn indicator of each candidate to the command of its batch.
  *
  * Candidate `k` belongs to batch `k % per_batch.size()`: the postprocessor appends one candidate
- * per batch for the prediction, then one per batch for each extra trajectory output. The
- * trajectory selector publishes the turn indicator of the candidate that it picks.
+ * per batch for the prediction, then one per batch for each extra trajectory output. With one
+ * command, every candidate gets it. The trajectory selector publishes the turn indicator of the
+ * candidate that it picks.
  *
  * Does nothing when the message has no `turn_indicators_command` field, so the node still builds
- * against Autoware 1.x. Header-only and templated, so both cases are tested without ROS.
+ * against autoware_internal_msgs before 1.14.0. Header-only and templated, so both cases are
+ * tested without ROS.
  */
 template <typename Candidate, typename Command>
 void set_candidate_turn_indicators(
