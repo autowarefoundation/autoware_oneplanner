@@ -780,8 +780,6 @@ bool OnePlannerNode::run_tick(TickTiming & timing)
     dump_tensors(inputs, outputs, *ego);
   }
 
-  pub_trajectory_->publish(output.trajectory);
-  pub_trajectories_->publish(output.candidate_trajectories);
   if (turn_indicator_filter_) {
     const auto logits = outputs.find(turn_indicator_tensor_);
     if (logits == outputs.end() || logits->second.host_data.size() < 3) {
@@ -794,9 +792,15 @@ bool OnePlannerNode::run_tick(TickTiming & timing)
       command.command = turn_indicator_filter_->update(
         std::vector<float>(logits->second.host_data.begin(), logits->second.host_data.begin() + 3),
         ego->stamp.seconds());
+      // The trajectory selector publishes the turn indicator of the candidate that it picks.
+      for (auto & candidate : output.candidate_trajectories.candidate_trajectories) {
+        candidate.turn_indicators_command = command;
+      }
       pub_turn_indicators_->publish(command);
     }
   }
+  pub_trajectory_->publish(output.trajectory);
+  pub_trajectories_->publish(output.candidate_trajectories);
   publish_planning_factor(output.trajectory);
 
   // Timing: the whole tick must fit in the planning period to sustain the output rate.
