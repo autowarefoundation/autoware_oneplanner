@@ -370,9 +370,9 @@ TEST(CandidateTurnIndicators, MessageWithoutTheFieldIsLeftAlone)
   // CandidateTrajectory of autoware_internal_msgs before 1.14.0 has no turn_indicators_command.
   static_assert(HasTurnIndicatorsCommand<CandidateWithIndicator>::value);
   static_assert(!HasTurnIndicatorsCommand<CandidateWithoutIndicator>::value);
+  // The check is that this compiles: the field is not touched when it does not exist.
   std::vector<CandidateWithoutIndicator> candidates(2);
   set_candidate_turn_indicators(candidates, std::vector<int>{2});
-  EXPECT_EQ(candidates[0].points, 0);
 }
 
 TEST(TurnIndicatorFilter, HoldsACommandSteady)

@@ -138,6 +138,11 @@ if(BUILD_TESTING)
     test/vector_map_test.cpp
   )
   target_link_libraries(test_${PROJECT_NAME}_core ${PROJECT_NAME}_core)
+  # CandidateTrajectory has turn_indicators_command from autoware_internal_planning_msgs 1.14.0.
+  if(autoware_internal_planning_msgs_VERSION VERSION_GREATER_EQUAL 1.14.0)
+    target_compile_definitions(test_${PROJECT_NAME}_core PRIVATE
+      ONEPLANNER_HAS_CANDIDATE_TURN_INDICATOR)
+  endif()
 
   if(GPU_AVAILABLE)
     find_package(nlohmann_json REQUIRED)

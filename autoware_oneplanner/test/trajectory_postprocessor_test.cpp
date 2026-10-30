@@ -14,6 +14,10 @@
 
 #include "autoware/oneplanner/postprocess/trajectory_postprocessor.hpp"
 
+#include "autoware/oneplanner/candidate_turn_indicators.hpp"
+
+#include <autoware_vehicle_msgs/msg/turn_indicators_command.hpp>
+
 #include <gtest/gtest.h>
 
 #include <cmath>
@@ -162,6 +166,61 @@ TEST(TrajectoryPostprocessorTest, ProducesTrajectoryInMapFrame)
   EXPECT_EQ(
     result.candidate_trajectories.generator_info.front().generator_name.data,
     "TestGenerator_batch_0");
+}
+
+TEST(TrajectoryPostprocessorTest, CandidatesGetTheTurnIndicatorOfTheirBatch)
+{
+#ifdef ONEPLANNER_HAS_CANDIDATE_TURN_INDICATOR
+  using autoware_vehicle_msgs::msg::TurnIndicatorsCommand;
+  // On the real message, so that the member check cannot turn the feature off unnoticed.
+  static_assert(
+    HasTurnIndicatorsCommand<autoware_internal_planning_msgs::msg::CandidateTrajectory>::value);
+
+  constexpr int64_t kBatches = 2;
+  auto params = make_params();
+  params.extra_trajectory_tensors = {"prior_trajectory"};
+  TrajectoryPostprocessor postprocessor(params);
+  postprocessor.validate_output_specs({
+    {"prediction", {kBatches, kTimesteps, 4}, TensorDataType::kFLOAT32},
+    {"prior_trajectory", {kBatches, kTimesteps, 4}, TensorDataType::kFLOAT32},
+  });
+
+  const auto straight = [](const double step_m) {
+    std::vector<float> data;
+    for (int64_t batch = 0; batch < kBatches; ++batch) {
+      for (int64_t t = 0; t < kTimesteps; ++t) {
+        data.insert(
+          data.end(), {static_cast<float>(step_m * static_cast<double>(t + 1)), 0.f, 1.f, 0.f});
+      }
+    }
+    return Tensor::from_host({kBatches, kTimesteps, 4}, std::move(data));
+  };
+  TensorMap outputs;
+  outputs.emplace("prediction", straight(1.0));
+  outputs.emplace("prior_trajectory", straight(0.5));
+
+  unique_identifier_msgs::msg::UUID uuid;
+  auto result =
+    postprocessor.process(outputs, make_ego_frame(0.0, 0.0, 10.0), rclcpp::Time(0), uuid);
+  auto & candidates = result.candidate_trajectories;
+  ASSERT_EQ(candidates.candidate_trajectories.size(), 4U);
+
+  std::vector<TurnIndicatorsCommand> commands(kBatches);
+  commands[0].command = TurnIndicatorsCommand::ENABLE_LEFT;
+  commands[1].command = TurnIndicatorsCommand::ENABLE_RIGHT;
+  set_candidate_turn_indicators(candidates.candidate_trajectories, commands);
+
+  // Each generator name ends in "_batch_<i>".
+  for (size_t k = 0; k < candidates.candidate_trajectories.size(); ++k) {
+    const auto & name = candidates.generator_info[k].generator_name.data;
+    const size_t batch = name.back() == '1' ? 1 : 0;
+    EXPECT_EQ(
+      candidates.candidate_trajectories[k].turn_indicators_command.command, commands[batch].command)
+      << name;
+  }
+#else
+  GTEST_SKIP() << "autoware_internal_planning_msgs before 1.14.0 has no turn_indicators_command";
+#endif
 }
 
 TEST(TrajectoryPostprocessorTest, AppliesBaseLinkOffsetInReverse)
