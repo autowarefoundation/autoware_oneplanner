@@ -163,11 +163,13 @@ TEST(TrajectoryPostprocessorTest, ProducesTrajectoryInMapFrame)
   EXPECT_EQ(
     result.candidate_trajectories.generator_info.front().generator_name.data,
     "TestGenerator_batch_0");
-  // The candidate and its generator info carry the generator UUID and the trajectory header.
+  // The candidate and its generator info carry the generator UUID, and the candidate carries
+  // the trajectory's header and points.
   const auto & candidate = result.candidate_trajectories.candidate_trajectories.front();
   EXPECT_EQ(candidate.generator_id, uuid);
   EXPECT_EQ(result.candidate_trajectories.generator_info.front().generator_id, uuid);
   EXPECT_EQ(candidate.header, result.trajectory.header);
+  EXPECT_EQ(candidate.points, result.trajectory.points);
 }
 
 TEST(TrajectoryPostprocessorTest, AppliesBaseLinkOffsetInReverse)
