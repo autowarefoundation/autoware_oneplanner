@@ -131,9 +131,9 @@ void append_candidate(
   const autoware_planning_msgs::msg::Trajectory & trajectory, const std::string & generator_name,
   const unique_identifier_msgs::msg::UUID & generator_uuid)
 {
-  // Assigned field by field, not with build<>(), so that the code also compiles against
-  // autoware_internal_planning_msgs versions that add fields, such as turn_indicators_command.
-  // A new field keeps its default value.
+  // The messages are assigned field by field, not with build<>(), so that the code also
+  // compiles against autoware_internal_planning_msgs versions that add fields, such as
+  // turn_indicators_command. A new field keeps its default value.
   autoware_internal_planning_msgs::msg::CandidateTrajectory candidate_trajectory;
   candidate_trajectory.header = trajectory.header;
   candidate_trajectory.generator_id = generator_uuid;
@@ -142,10 +142,9 @@ void append_candidate(
   std_msgs::msg::String generator_name_msg;
   generator_name_msg.data = generator_name;
 
-  const auto generator_info =
-    autoware_internal_planning_msgs::build<autoware_internal_planning_msgs::msg::GeneratorInfo>()
-      .generator_id(generator_uuid)
-      .generator_name(generator_name_msg);
+  autoware_internal_planning_msgs::msg::GeneratorInfo generator_info;
+  generator_info.generator_id = generator_uuid;
+  generator_info.generator_name = generator_name_msg;
 
   candidates.candidate_trajectories.push_back(candidate_trajectory);
   candidates.generator_info.push_back(generator_info);
