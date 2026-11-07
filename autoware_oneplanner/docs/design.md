@@ -220,9 +220,13 @@ actually fed, to compare with what it was trained on.
 
 ## Code adapted from Autoware
 
-To build on Autoware Core alone, the package carries adapted copies of the parts of
-`autoware_universe` it uses, under its own namespace so that they can be loaded into the same
-process as the originals. All are Apache-2.0 and keep their copyright notices.
+The package carries adapted copies of the parts of Autoware it uses, under its own namespace
+so that they can be loaded into the same process as the originals. The copies of
+`autoware_diffusion_planner` and `autoware_bevfusion` let it build on Autoware Core alone,
+without `autoware_universe`. `autoware_tensorrt_common` and `autoware_cuda_utils` were adapted
+from `autoware_universe`. They are now in the CUDA layer of Autoware Core, in
+[autoware_cuda](https://github.com/autowarefoundation/autoware_cuda). All are Apache-2.0 and
+keep their copyright notices.
 
 | Origin                       | Adapted here                                                                                                         |
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------------- |
