@@ -643,7 +643,7 @@ void OnePlannerNode::run_once()
   // would otherwise also be able to enter this from two executor threads at once.
   std::lock_guard<std::mutex> lock(tick_mutex_);
   last_tick_ = get_clock()->now();
-  // Everything below throws: ONEPLANNER_CHECK_CUDA raises std::runtime_error, and so do the
+  // Everything below throws: CHECK_CUDA_ERROR raises std::runtime_error, and so do the
   // extractor, the temporal cache and the inference engine. This runs in a subscription
   // callback, so an escaping exception does not fail this node, it terminates the process,
   // which may be a container shared with the sensing stack. Catch here and go quiet instead:

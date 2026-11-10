@@ -160,7 +160,7 @@ InferenceEngine::InferenceEngine(const Config & config)
     obey_graph_precision(network, builder_config, precision);
   };
   engine_ = std::make_unique<trt::TrtEngine>(engine_config);
-  ONEPLANNER_CHECK_CUDA(cudaStreamCreate(&stream_));
+  CHECK_CUDA_ERROR(cudaStreamCreate(&stream_));
   introspect_and_bind();
 }
 
@@ -253,10 +253,12 @@ void InferenceEngine::introspect_and_bind()
   // instead of one pageable-memory copy each -- a dozen of those, each of which the
   // runtime has to stage and wait on, cost more than the bytes they move. The outputs come
   // back the same way, in one copy.
-  device_inputs_ = cuda::make_device_unique<uint8_t[]>(input_block_bytes_);
-  pinned_inputs_ = cuda::make_host_unique<uint8_t[]>(input_block_bytes_, cudaHostAllocDefault);
-  device_outputs_ = cuda::make_device_unique<uint8_t[]>(output_block_bytes_);
-  pinned_outputs_ = cuda::make_host_unique<uint8_t[]>(output_block_bytes_, cudaHostAllocDefault);
+  device_inputs_ = cuda_utils::make_unique<uint8_t[]>(input_block_bytes_);
+  pinned_inputs_ =
+    cuda_utils::make_unique_host<uint8_t[]>(input_block_bytes_, cudaHostAllocDefault);
+  device_outputs_ = cuda_utils::make_unique<uint8_t[]>(output_block_bytes_);
+  pinned_outputs_ =
+    cuda_utils::make_unique_host<uint8_t[]>(output_block_bytes_, cudaHostAllocDefault);
   for (auto & binding : input_bindings_) {
     binding.device = device_inputs_.get() + binding.offset;
     bind_address(binding, binding.device);
@@ -302,7 +304,7 @@ std::string InferenceEngine::transfer_input(Binding & binding, const Tensor & te
     }
     // A provider buffer that is not aligned for TensorRT goes through this tensor's slot.
     bind_address(binding, binding.device);
-    ONEPLANNER_CHECK_CUDA(cudaMemcpyAsync(
+    CHECK_CUDA_ERROR(cudaMemcpyAsync(
       binding.device, tensor.device_data, binding.byte_size, cudaMemcpyDeviceToDevice, stream_));
     return "";
   }
@@ -354,7 +356,7 @@ InferenceEngine::Result InferenceEngine::infer(const TensorMap & inputs)
   // ride along.
   const auto flush = [this](const size_t begin, const size_t end) {
     if (end > begin) {
-      ONEPLANNER_CHECK_CUDA(cudaMemcpyAsync(
+      CHECK_CUDA_ERROR(cudaMemcpyAsync(
         device_inputs_.get() + begin, pinned_inputs_.get() + begin, end - begin,
         cudaMemcpyHostToDevice, stream_));
     }
@@ -378,12 +380,12 @@ InferenceEngine::Result InferenceEngine::infer(const TensorMap & inputs)
     result.error_msg = "Failed to enqueue inference";
     return result;
   }
-  ONEPLANNER_CHECK_CUDA(cudaMemcpyAsync(
+  CHECK_CUDA_ERROR(cudaMemcpyAsync(
     pinned_outputs_.get(), device_outputs_.get(), output_block_bytes_, cudaMemcpyDeviceToHost,
     stream_));
   // The one host synchronization of the tick: everything a provider queued on this stream,
   // the network, and the output copy have completed when it returns.
-  ONEPLANNER_CHECK_CUDA(cudaStreamSynchronize(stream_));
+  CHECK_CUDA_ERROR(cudaStreamSynchronize(stream_));
 
   TensorMap outputs;
   for (const auto & binding : output_bindings_) {

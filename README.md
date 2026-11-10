@@ -67,13 +67,14 @@ these times; its GPU time is reported as `bev_feature.extraction_gpu_ms` on `inf
 | Component        | Version                                                                                                                                                |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | ROS 2            | Jazzy (Humble also builds)                                                                                                                             |
-| Autoware         | Core 1.x                                                                                                                                               |
+| Autoware         | Core of Autoware 2.1.0 or newer, with its CUDA packages (`autoware_cuda`)                                                                              |
 | GPU stack        | NVIDIA GPU (Turing or newer), CUDA 12 or 13, TensorRT 10                                                                                               |
 | spconv           | `cumm` and `spconv` C++ libraries as Autoware installs them ([autowarefoundation/spconv_cpp](https://github.com/autowarefoundation/spconv_cpp))        |
 | TensorRT plugins | `autoware_tensorrt_plugins` from [autoware_universe](https://github.com/autowarefoundation/autoware_universe), for the extractor's sparse convolutions |
 
-Without CUDA, TensorRT or spconv the package still builds its host library and tests, but not the
-node, as Autoware's other CUDA packages do.
+The package depends on `autoware_cuda_utils`, so it builds only where the CUDA packages of
+Autoware Core are built. Without TensorRT or spconv it still builds its host library and tests,
+but not the node.
 
 ## Build
 

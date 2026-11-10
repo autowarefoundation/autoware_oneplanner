@@ -15,7 +15,9 @@
 #include "autoware/oneplanner/bev_feature/temporal_bev_cache.hpp"
 
 #include "autoware/oneplanner/bev_feature/bev_warp_kernel.hpp"
-#include "autoware/oneplanner/cuda_utils.hpp"
+
+#include <autoware/cuda_utils/cuda_check_error.hpp>
+#include <autoware/cuda_utils/cuda_unique_ptr.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -62,7 +64,7 @@ TemporalBevCache::TemporalBevCache(
     throw std::runtime_error("TemporalBevCache: feature dimensions must be positive");
   }
   history_ =
-    cuda::make_device_unique<float[]>(static_cast<size_t>(config_.frames) * frame_elements_);
+    cuda_utils::make_unique<float[]>(static_cast<size_t>(config_.frames) * frame_elements_);
 }
 
 int64_t TemporalBevCache::substituted_frames() const
@@ -110,7 +112,7 @@ TemporalBevCache::InsertResult TemporalBevCache::insert(
   } else if (stamp == slots_.front().stamp) {
     // A repeated cloud updates its slot without discarding valid history.
     slots_.front().pose = pose;
-    ONEPLANNER_CHECK_CUDA(cudaMemcpyAsync(
+    CHECK_CUDA_ERROR(cudaMemcpyAsync(
       slots_.front().feature.get(), d_feature, frame_elements_ * sizeof(float),
       cudaMemcpyDeviceToDevice, stream));
     return result;
@@ -148,13 +150,13 @@ TemporalBevCache::InsertResult TemporalBevCache::insert(
     slot = std::move(free_slots_.back());
     free_slots_.pop_back();
   } else {
-    slot.feature = cuda::make_device_unique<float[]>(frame_elements_);
+    slot.feature = cuda_utils::make_unique<float[]>(frame_elements_);
   }
   slot.pose = pose;
   slot.stamp = stamp;
   // Queued, not waited for: the extractor produced d_feature on this same stream and will
   // not touch it again before the next frame's work, which is queued behind this copy.
-  ONEPLANNER_CHECK_CUDA(cudaMemcpyAsync(
+  CHECK_CUDA_ERROR(cudaMemcpyAsync(
     slot.feature.get(), d_feature, frame_elements_ * sizeof(float), cudaMemcpyDeviceToDevice,
     stream));
   slots_.push_front(std::move(slot));
@@ -203,7 +205,7 @@ const float * TemporalBevCache::build_history(
     if (slot.pose == target_pose) {
       // Already in the target ego frame -- the newest map, when the plan starts at its
       // stamp; identical poses need no warp.
-      ONEPLANNER_CHECK_CUDA(cudaMemcpyAsync(
+      CHECK_CUDA_ERROR(cudaMemcpyAsync(
         destination, slot.feature.get(), frame_elements_ * sizeof(float), cudaMemcpyDeviceToDevice,
         stream));
       continue;
@@ -212,7 +214,7 @@ const float * TemporalBevCache::build_history(
     const Se2WarpParams params = make_se2_warp_params(
       target_pose, slot.pose, config_.bev_half_extent_m, static_cast<int32_t>(height_),
       static_cast<int32_t>(width_));
-    ONEPLANNER_CHECK_CUDA(launch_se2_warp_kernel(
+    CHECK_CUDA_ERROR(launch_se2_warp_kernel(
       slot.feature.get(), destination, params, static_cast<int32_t>(channels_), stream));
   }
   // Also queued: the network reads history_ on this stream, so it sees the finished

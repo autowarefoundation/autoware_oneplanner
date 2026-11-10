@@ -16,9 +16,9 @@
 #define AUTOWARE__ONEPLANNER__BEV_FEATURE__TEMPORAL_BEV_CACHE_HPP_
 
 #include "autoware/oneplanner/bev_feature/history_selection.hpp"
-#include "autoware/oneplanner/cuda_utils.hpp"
 #include "autoware/oneplanner/pose_discontinuity.hpp"
 
+#include <autoware/cuda_utils/cuda_unique_ptr.hpp>
 #include <rclcpp/time.hpp>
 
 #include <cuda_runtime_api.h>
@@ -126,7 +126,7 @@ public:
 private:
   struct Slot
   {
-    cuda::DeviceUniquePtr<float[]> feature;
+    cuda_utils::CudaUniquePtr<float[]> feature;
     std::array<double, 4> pose{};
     rclcpp::Time stamp;
   };
@@ -142,7 +142,7 @@ private:
 
   std::deque<Slot> slots_;        //!< Front = newest.
   std::vector<Slot> free_slots_;  //!< Evicted slots kept for device-buffer reuse.
-  cuda::DeviceUniquePtr<float[]> history_;
+  cuda_utils::CudaUniquePtr<float[]> history_;
 };
 
 }  // namespace autoware::oneplanner

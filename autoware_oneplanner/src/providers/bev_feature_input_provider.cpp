@@ -14,10 +14,10 @@
 
 #include "autoware/oneplanner/providers/bev_feature_input_provider.hpp"
 
-#include "autoware/oneplanner/cuda_utils.hpp"
 #include "autoware/oneplanner/geometry.hpp"
 #include "autoware/oneplanner/input_provider_registry.hpp"
 
+#include <autoware/cuda_utils/cuda_check_error.hpp>
 #include <rcl_interfaces/msg/parameter_descriptor.hpp>
 
 #include <algorithm>
@@ -227,7 +227,7 @@ std::vector<std::string> BevFeatureInputProvider::claim_inputs(
   history_shape_ = shape;
 
   if (!stream_) {
-    ONEPLANNER_CHECK_CUDA(cudaStreamCreate(&stream_));
+    CHECK_CUDA_ERROR(cudaStreamCreate(&stream_));
     owns_stream_ = true;
   }
   try {
@@ -246,8 +246,8 @@ std::vector<std::string> BevFeatureInputProvider::claim_inputs(
       "] maps, but the planner expects '" + history_tensor_name_ + "' with shape " +
       shape_to_string(shape));
   }
-  ONEPLANNER_CHECK_CUDA(cudaEventCreate(&extraction_start_));
-  ONEPLANNER_CHECK_CUDA(cudaEventCreate(&extraction_end_));
+  CHECK_CUDA_ERROR(cudaEventCreate(&extraction_start_));
+  CHECK_CUDA_ERROR(cudaEventCreate(&extraction_end_));
   cache_ = std::make_unique<TemporalBevCache>(
     cache_config_, extractor_->channels(), extractor_->height(), extractor_->width());
 
@@ -338,9 +338,9 @@ void BevFeatureInputProvider::on_pointcloud(const sensor_msgs::msg::PointCloud2:
     // other nodes, so it is latched here and rethrown by collect() inside the tick, which
     // catches it, reports ERROR and stops planning.
     try {
-      ONEPLANNER_CHECK_CUDA(cudaEventRecord(extraction_start_, stream_));
+      CHECK_CUDA_ERROR(cudaEventRecord(extraction_start_, stream_));
       pending_feature_ = extractor_->extract(*msg, pending_error_);
-      ONEPLANNER_CHECK_CUDA(cudaEventRecord(extraction_end_, stream_));
+      CHECK_CUDA_ERROR(cudaEventRecord(extraction_end_, stream_));
     } catch (const std::exception & e) {
       extraction_error_ = std::string("BEV feature extraction failed: ") + e.what();
       pending_feature_ = nullptr;

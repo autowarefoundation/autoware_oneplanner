@@ -224,9 +224,11 @@ To build on Autoware Core alone, the package carries adapted copies of the parts
 `autoware_universe` it uses, under its own namespace so that they can be loaded into the same
 process as the originals. All are Apache-2.0 and keep their copyright notices.
 
+CUDA error checking and the device and pinned memory pointers are not copies: they come from
+`autoware_cuda_utils`, which is part of Autoware Core.
+
 | Origin                       | Adapted here                                                                                                         |
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `autoware_diffusion_planner` | Lanelet map conversion, lane segment selection and tensors, ego history, velocity profile, planning-factor detection |
 | `autoware_bevfusion`         | Voxelization, detection decode, circle and BEV-IoU NMS, class remapper, box conversion                               |
 | `autoware_tensorrt_common`   | The TensorRT build configuration (`trt::TrtEngine`)                                                                  |
-| `autoware_cuda_utils`        | CUDA error checking and device / pinned memory pointers                                                              |

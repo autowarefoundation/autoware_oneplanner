@@ -17,9 +17,9 @@
 
 #include "autoware/oneplanner/trt/trt_engine.hpp"
 
-#include "autoware/oneplanner/cuda_utils.hpp"
 #include "autoware/oneplanner/engine_identity.hpp"
 
+#include <autoware/cuda_utils/cuda_check_error.hpp>
 #include <rclcpp/logging.hpp>
 
 #include <NvInferPlugin.h>
@@ -98,7 +98,7 @@ TrtEngine::TrtEngine(const EngineConfig & config)
 
   // Process-wide, as TrtCommon sets it: a host thread waiting for the device sleeps instead
   // of spinning a core.
-  ONEPLANNER_CHECK_CUDA(cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync));
+  CHECK_CUDA_ERROR(cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync));
   load_plugins(config.plugin_paths);
   initLibNvInferPlugins(logger_.get(), "");
   runtime_.reset(nvinfer1::createInferRuntime(*logger_));
@@ -149,9 +149,9 @@ void TrtEngine::load_plugins(const std::vector<std::string> & plugin_paths)
 std::string TrtEngine::build_identity(const EngineConfig & config) const
 {
   int device = 0;
-  ONEPLANNER_CHECK_CUDA(cudaGetDevice(&device));
+  CHECK_CUDA_ERROR(cudaGetDevice(&device));
   cudaDeviceProp properties{};
-  ONEPLANNER_CHECK_CUDA(cudaGetDeviceProperties(&properties, device));
+  CHECK_CUDA_ERROR(cudaGetDeviceProperties(&properties, device));
 
   std::ostringstream oss;
   oss << config.precision << "+trt" << NV_TENSORRT_MAJOR << "." << NV_TENSORRT_MINOR << "."

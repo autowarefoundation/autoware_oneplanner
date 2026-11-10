@@ -15,9 +15,10 @@
 #ifndef AUTOWARE__ONEPLANNER__INFERENCE_ENGINE_HPP_
 #define AUTOWARE__ONEPLANNER__INFERENCE_ENGINE_HPP_
 
-#include "autoware/oneplanner/cuda_utils.hpp"
 #include "autoware/oneplanner/trt/trt_engine.hpp"
 #include "autoware/oneplanner/types.hpp"
+
+#include <autoware/cuda_utils/cuda_unique_ptr.hpp>
 
 #include <cuda_runtime_api.h>
 
@@ -120,10 +121,10 @@ private:
   // and its outputs come back in one.
   size_t input_block_bytes_{0};
   size_t output_block_bytes_{0};
-  cuda::DeviceUniquePtr<uint8_t[]> device_inputs_;
-  cuda::HostUniquePtr<uint8_t[]> pinned_inputs_;
-  cuda::DeviceUniquePtr<uint8_t[]> device_outputs_;
-  cuda::HostUniquePtr<uint8_t[]> pinned_outputs_;
+  cuda_utils::CudaUniquePtr<uint8_t[]> device_inputs_;
+  cuda_utils::CudaUniquePtrHost<uint8_t[]> pinned_inputs_;
+  cuda_utils::CudaUniquePtr<uint8_t[]> device_outputs_;
+  cuda_utils::CudaUniquePtrHost<uint8_t[]> pinned_outputs_;
   cudaStream_t stream_{nullptr};
 };
 

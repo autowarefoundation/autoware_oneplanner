@@ -105,12 +105,12 @@ TrtBevFeatureExtractor::TrtBevFeatureExtractor(const Config & config, cudaStream
   const auto capacity = static_cast<size_t>(voxelizer_config_.cloud_capacity);
   const auto features = static_cast<size_t>(voxelizer_config_.num_point_features());
   const auto max_voxels = static_cast<size_t>(voxelizer_config_.max_num_voxels);
-  cloud_d_ = cuda::make_device_unique<uint8_t[]>(capacity * sizeof(bev::InputPoint));
-  points_d_ = cuda::make_device_unique<float[]>(capacity * features);
-  voxel_features_d_ = cuda::make_device_unique<float[]>(
+  cloud_d_ = cuda_utils::make_unique<uint8_t[]>(capacity * sizeof(bev::InputPoint));
+  points_d_ = cuda_utils::make_unique<float[]>(capacity * features);
+  voxel_features_d_ = cuda_utils::make_unique<float[]>(
     max_voxels * static_cast<size_t>(voxelizer_config_.max_points_per_voxel) * features);
-  voxel_coords_d_ = cuda::make_device_unique<int32_t[]>(max_voxels * 3);
-  num_points_per_voxel_d_ = cuda::make_device_unique<int32_t[]>(max_voxels);
+  voxel_coords_d_ = cuda_utils::make_unique<int32_t[]>(max_voxels * 3);
+  num_points_per_voxel_d_ = cuda_utils::make_unique<int32_t[]>(max_voxels);
 
   init_engine(config);
 }
@@ -160,7 +160,7 @@ void TrtBevFeatureExtractor::init_engine(const Config & config)
   height_ = dims[base + 1];
   width_ = dims[base + 2];
 
-  feature_d_ = cuda::make_device_unique<float[]>(static_cast<size_t>(channels_ * height_ * width_));
+  feature_d_ = cuda_utils::make_unique<float[]>(static_cast<size_t>(channels_ * height_ * width_));
 
   engine_->set_tensor_address("voxels", voxel_features_d_.get());
   engine_->set_tensor_address("num_points_per_voxel", num_points_per_voxel_d_.get());
@@ -205,7 +205,7 @@ void TrtBevFeatureExtractor::bind_unread_outputs()
         "' has an unsupported data type; it cannot be given a buffer");
     }
 
-    unread_output_scratch_.push_back(cuda::make_device_unique<uint8_t[]>(bytes));
+    unread_output_scratch_.push_back(cuda_utils::make_unique<uint8_t[]>(bytes));
     engine_->set_tensor_address(name, unread_output_scratch_.back().get());
     bound_outputs_.emplace_back(name);
   }
@@ -257,9 +257,9 @@ void TrtBevFeatureExtractor::init_detection(const Config & config)
   expect(detection.score_tensor, {proposals});
   expect(detection.label_tensor, {proposals});
 
-  bbox_pred_d_ = cuda::make_device_unique<float[]>(static_cast<size_t>(kNumBoxValues * proposals));
-  score_d_ = cuda::make_device_unique<float[]>(static_cast<size_t>(proposals));
-  label_pred_d_ = cuda::make_device_unique<int64_t[]>(static_cast<size_t>(proposals));
+  bbox_pred_d_ = cuda_utils::make_unique<float[]>(static_cast<size_t>(kNumBoxValues * proposals));
+  score_d_ = cuda_utils::make_unique<float[]>(static_cast<size_t>(proposals));
+  label_pred_d_ = cuda_utils::make_unique<int64_t[]>(static_cast<size_t>(proposals));
 
   engine_->set_tensor_address(detection.bbox_tensor.c_str(), bbox_pred_d_.get());
   engine_->set_tensor_address(detection.score_tensor.c_str(), score_d_.get());
@@ -274,8 +274,8 @@ void TrtBevFeatureExtractor::init_detection(const Config & config)
   const std::vector<float> yaw_norm_thresholds(
     detection.yaw_norm_thresholds.begin(), detection.yaw_norm_thresholds.end());
   const auto upload = [this](const std::vector<float> & values) {
-    auto device = cuda::make_device_unique<float[]>(values.size());
-    ONEPLANNER_CHECK_CUDA(cudaMemcpyAsync(
+    auto device = cuda_utils::make_unique<float[]>(values.size());
+    CHECK_CUDA_ERROR(cudaMemcpyAsync(
       device.get(), values.data(), values.size() * sizeof(float), cudaMemcpyHostToDevice, stream_));
     return device;
   };
@@ -283,7 +283,7 @@ void TrtBevFeatureExtractor::init_detection(const Config & config)
   squared_upper_limits_d_ = upload(table.squared_upper_limits);
   score_thresholds_d_ = upload(table.thresholds);
   // The uploads read host vectors that end with this scope.
-  ONEPLANNER_CHECK_CUDA(cudaStreamSynchronize(stream_));
+  CHECK_CUDA_ERROR(cudaStreamSynchronize(stream_));
 
   decode_geometry_.num_proposals = static_cast<int32_t>(proposals);
   decode_geometry_.num_classes = static_cast<int32_t>(class_count);
@@ -295,10 +295,10 @@ void TrtBevFeatureExtractor::init_detection(const Config & config)
   decode_geometry_.min_y_range = config.point_cloud_range[1];
 
   const auto capacity = static_cast<size_t>(proposals);
-  decoded_d_ = cuda::make_device_unique<DecodedBox[]>(capacity);
-  decoded_count_d_ = cuda::make_device_unique<int32_t[]>(1);
-  decoded_h_ = cuda::make_host_unique<DecodedBox[]>(capacity);
-  decoded_count_h_ = cuda::make_host_unique<int32_t[]>(1);
+  decoded_d_ = cuda_utils::make_unique<DecodedBox[]>(capacity);
+  decoded_count_d_ = cuda_utils::make_unique<int32_t[]>(1);
+  decoded_h_ = cuda_utils::make_unique_host<DecodedBox[]>(capacity, cudaHostAllocDefault);
+  decoded_count_h_ = cuda_utils::make_unique_host<int32_t[]>(1, cudaHostAllocDefault);
   decoded_.reserve(capacity);
   last_detections_.reserve(capacity);
   detection_enabled_ = true;
@@ -353,10 +353,10 @@ const float * TrtBevFeatureExtractor::extract(
   num_points = std::min(num_points, static_cast<size_t>(voxelizer_config_.cloud_capacity));
 
   // One upload of the cloud; the rest of the pipeline stays on the device.
-  ONEPLANNER_CHECK_CUDA(cudaMemcpyAsync(
+  CHECK_CUDA_ERROR(cudaMemcpyAsync(
     cloud_d_.get(), cloud.data.data(), num_points * sizeof(bev::InputPoint), cudaMemcpyHostToDevice,
     stream_));
-  ONEPLANNER_CHECK_CUDA(voxelizer_->generate_points(
+  CHECK_CUDA_ERROR(voxelizer_->generate_points(
     reinterpret_cast<const bev::InputPoint *>(cloud_d_.get()), num_points, points_d_.get()));
 
   // The voxel count comes back to the host, which is the one wait this function cannot

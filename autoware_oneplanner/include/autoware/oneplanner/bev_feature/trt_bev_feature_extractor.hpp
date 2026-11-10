@@ -17,8 +17,9 @@
 
 #include "autoware/oneplanner/bev_feature/detection_decode.hpp"
 #include "autoware/oneplanner/bev_feature/voxelizer.hpp"
-#include "autoware/oneplanner/cuda_utils.hpp"
 #include "autoware/oneplanner/trt/trt_engine.hpp"
+
+#include <autoware/cuda_utils/cuda_unique_ptr.hpp>
 
 #include <sensor_msgs/msg/point_cloud2.hpp>
 
@@ -167,29 +168,29 @@ private:
   std::unique_ptr<trt::TrtEngine> engine_;
 
   // Device buffers (allocated once at maximum size)
-  cuda::DeviceUniquePtr<uint8_t[]> cloud_d_;
-  cuda::DeviceUniquePtr<float[]> points_d_;
-  cuda::DeviceUniquePtr<float[]> voxel_features_d_;
-  cuda::DeviceUniquePtr<int32_t[]> voxel_coords_d_;
-  cuda::DeviceUniquePtr<int32_t[]> num_points_per_voxel_d_;
-  cuda::DeviceUniquePtr<float[]> feature_d_;
-  cuda::DeviceUniquePtr<float[]> bbox_pred_d_;
-  cuda::DeviceUniquePtr<float[]> score_d_;
-  cuda::DeviceUniquePtr<int64_t[]> label_pred_d_;
+  cuda_utils::CudaUniquePtr<uint8_t[]> cloud_d_;
+  cuda_utils::CudaUniquePtr<float[]> points_d_;
+  cuda_utils::CudaUniquePtr<float[]> voxel_features_d_;
+  cuda_utils::CudaUniquePtr<int32_t[]> voxel_coords_d_;
+  cuda_utils::CudaUniquePtr<int32_t[]> num_points_per_voxel_d_;
+  cuda_utils::CudaUniquePtr<float[]> feature_d_;
+  cuda_utils::CudaUniquePtr<float[]> bbox_pred_d_;
+  cuda_utils::CudaUniquePtr<float[]> score_d_;
+  cuda_utils::CudaUniquePtr<int64_t[]> label_pred_d_;
   // Detection decode: the thresholds, the compacted survivors and their count, and the
   // pinned host copy both come back to in one transfer.
   DetectionDecodeGeometry decode_geometry_{};
-  cuda::DeviceUniquePtr<float[]> yaw_norm_thresholds_d_;
-  cuda::DeviceUniquePtr<float[]> squared_upper_limits_d_;
-  cuda::DeviceUniquePtr<float[]> score_thresholds_d_;
-  cuda::DeviceUniquePtr<DecodedBox[]> decoded_d_;
-  cuda::DeviceUniquePtr<int32_t[]> decoded_count_d_;
-  cuda::HostUniquePtr<DecodedBox[]> decoded_h_;
-  cuda::HostUniquePtr<int32_t[]> decoded_count_h_;
+  cuda_utils::CudaUniquePtr<float[]> yaw_norm_thresholds_d_;
+  cuda_utils::CudaUniquePtr<float[]> squared_upper_limits_d_;
+  cuda_utils::CudaUniquePtr<float[]> score_thresholds_d_;
+  cuda_utils::CudaUniquePtr<DecodedBox[]> decoded_d_;
+  cuda_utils::CudaUniquePtr<int32_t[]> decoded_count_d_;
+  cuda_utils::CudaUniquePtrHost<DecodedBox[]> decoded_h_;
+  cuda_utils::CudaUniquePtrHost<int32_t[]> decoded_count_h_;
   std::vector<DecodedBox> decoded_;
   /// Outputs bound above, by engine tensor name; the rest get scratch buffers.
   std::vector<std::string> bound_outputs_;
-  std::vector<cuda::DeviceUniquePtr<uint8_t[]>> unread_output_scratch_;
+  std::vector<cuda_utils::CudaUniquePtr<uint8_t[]>> unread_output_scratch_;
 
   int64_t channels_{0};
   int64_t height_{0};
