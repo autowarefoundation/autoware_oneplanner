@@ -75,6 +75,11 @@ these times; its GPU time is reported as `bev_feature.extraction_gpu_ms` on `inf
 Without CUDA, TensorRT or spconv the package still builds its host library and tests, but not the
 node, as Autoware's other CUDA packages do.
 
+`package.xml` depends on `autoware_cuda_dependency_meta`, which marks a CUDA package of Autoware.
+It is part of Autoware Core since Autoware 2.1.0, and part of `autoware_universe` before that.
+Where it is absent, colcon still builds the package, and `rosdep install` needs
+`--skip-keys autoware_cuda_dependency_meta`.
+
 ## Build
 
 In an Autoware workspace:

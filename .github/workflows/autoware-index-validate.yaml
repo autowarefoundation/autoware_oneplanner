@@ -4,7 +4,7 @@ name: autoware-index-validate
 # is registered for in autowarefoundation/autoware-index, with the reusable workflow of
 # autoware-index-github-actions. That workflow picks the core-devel-cuda container image, because
 # package.xml depends on autoware_cuda_dependency_meta. The image has CUDA, TensorRT and spconv,
-# so the node builds too. The runner has no GPU, so each GPU test skips itself.
+# so the node builds too. The runner has no GPU, so the tests that need a GPU skip themselves.
 
 on:
   push:
